@@ -20,7 +20,11 @@ public sealed class InfernoPlugin : BaseUnityPlugin
     /// <summary>The Valheim version this build was tested against (see README compatibility table).</summary>
     private const string TestedGameVersion = "1.0.17";
 
+    // A failing frame is retried; only errors on every frame for this long switch Inferno off for the session.
+    private const float GiveUpAfterSeconds = 30f;
+
     private Harmony? _harmony;
+    private float _failingSince = -1f;
     private ConfigSettingsStore? _store;
     private ClientSync? _client;
     private bool _clientFailed;
@@ -28,6 +32,7 @@ public sealed class InfernoPlugin : BaseUnityPlugin
 
     private void Awake()
     {
+        Diagnostics.Init(Logger);
         _store = new ConfigSettingsStore(Config, Logger);
         _client = new ClientSync(_store, Logger);
         ClientFeatures.Store = _store;
@@ -68,21 +73,42 @@ public sealed class InfernoPlugin : BaseUnityPlugin
             return;
         }
 
+        if (InfernoRuntime.Current is null)
+        {
+            try
+            {
+                InfernoRuntime.Start(_store!, Logger, _harmony);
+            }
+            catch (Exception e)
+            {
+                // Can't run without a working start: leave the game vanilla for this session.
+                _failed = true;
+                InfernoRuntime.Stop();
+                Logger.LogError($"Inferno could not start and is disabled until the world is reloaded; the game runs as vanilla. Please report this with the log (Inferno {MyPluginInfo.PLUGIN_VERSION}, Valheim {Version.CurrentVersion}):\n{e}");
+                return;
+            }
+        }
+
+        var now = Time.realtimeSinceStartup;
         try
         {
-            if (InfernoRuntime.Current is null)
-            {
-                InfernoRuntime.Start(_store!, Logger);
-            }
-
-            InfernoRuntime.Current!.Tick(Time.realtimeSinceStartup);
+            InfernoRuntime.Current!.Tick(now);
+            _failingSince = -1f;
         }
         catch (Exception e)
         {
-            // Never break the server: disable Inferno for this session and leave the game vanilla.
-            _failed = true;
-            InfernoRuntime.Stop();
-            Logger.LogError($"Inferno hit an unexpected error and is disabled until the world is reloaded. {e}");
+            Diagnostics.Error("running Inferno's regular update", e);
+            if (_failingSince < 0f)
+            {
+                _failingSince = now;
+            }
+            else if (now - _failingSince > GiveUpAfterSeconds)
+            {
+                // Never break the server: after a sustained failure, disable Inferno and leave the game vanilla.
+                _failed = true;
+                InfernoRuntime.Stop();
+                Logger.LogError($"Inferno kept failing for {GiveUpAfterSeconds:0} s and is disabled until the world is reloaded; the game runs as vanilla. See the first error above.");
+            }
         }
     }
 
@@ -121,7 +147,7 @@ public sealed class InfernoPlugin : BaseUnityPlugin
         catch (Exception e)
         {
             _clientFailed = true;
-            Logger.LogError($"Inferno client features hit an unexpected error and are disabled until restart. {e}");
+            Diagnostics.Error("running the client mod features (now disabled until the game restarts)", e);
         }
     }
 

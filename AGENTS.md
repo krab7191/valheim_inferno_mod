@@ -68,7 +68,8 @@ dotnet build
 # Formatting / style check (must pass)
 dotnet format Inferno.slnx --verify-no-changes
 
-# Release package for servers: artifacts/Inferno-<version>.zip
+# Release packages: artifacts/GrundleLord-Inferno-<version>.zip (Thunderstore upload)
+# and artifacts/Inferno-<version>.zip (unzip into a server's Valheim folder)
 dotnet build -c Release
 ```
 
@@ -94,6 +95,13 @@ Coverage report (Cobertura XML): `artifacts/TestResults/`. Setting `InfernoDeplo
   logged, never thrown into the game loop.
 - Log through the BepInEx logger: actions at Debug, recoverable problems at Warning.
 - Comments explain *why* (especially game-engine quirks), not *what*.
+
+## Releasing
+
+- Thunderstore versions are permanent: every upload needs a new `<Version>` in `Directory.Build.props`
+  (semantic versioning) and a matching `CHANGELOG.md` section. Update `TestedGameVersion` in `InfernoPlugin.cs`
+  and the README compatibility table only for game versions actually tested.
+- `dotnet build -c Release` builds both zips; the owner uploads the Thunderstore zip.
 
 ## When you finish a task
 

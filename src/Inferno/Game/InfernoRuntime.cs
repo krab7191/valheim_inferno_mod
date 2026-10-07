@@ -36,8 +36,9 @@ internal sealed class InfernoRuntime : IDisposable
 
     public ServerOwnership Ownership { get; }
 
-    public static void Start(ConfigSettingsStore store, ManualLogSource log)
+    public static void Start(ConfigSettingsStore store, ManualLogSource log, HarmonyLib.Harmony? harmony)
     {
+        Diagnostics.LogStartup(harmony, store.ConfigPath);
         var discovery = PrefabDiscovery.Run(ZNetScene.instance, log);
         store.BindItems(discovery.Catalog);
         store.WatchFile();
@@ -101,6 +102,7 @@ internal sealed class InfernoRuntime : IDisposable
             $"Inferno {MyPluginInfo.PLUGIN_VERSION} running on Valheim {gameVersion}.",
             $"Item types: {lights} light(s), {_discovery.Catalog.Items.Count - lights} station(s). {Scanner.StatusText}",
             $"In-game time {Scanner.CurrentTimeText}. AdminOnly {OnOff(general.AdminOnly)}, IgnoreRain {OnOff(general.IgnoreRain)}, ServerOwnership {OnOff(general.ServerOwnership)}.",
+            Diagnostics.ErrorCount == 0 ? "Errors since start: 0." : $"Errors since start: {Diagnostics.ErrorCount} (see the server log).",
         ];
     }
 

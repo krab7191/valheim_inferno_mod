@@ -5,7 +5,14 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-07
+
+First public beta. Tested in-game on a local dedicated server (Valheim 1.0.17) with vanilla PC clients.
+
 ### Added
+- Error reporting: each problem is logged once in full (repeats summarised), one failing object never stops
+  Inferno, startup diagnostics (versions, crossplay, other mods, shared hooks), error count in `!fires status`.
+- Thunderstore package (GrundleLord-Inferno); MIT license.
 - Project scaffold: core library, BepInEx plugin, test project with a 100 % coverage gate.
 - In-game clock conversion that matches Valheim's own day/night rescaling (06:00 = sunrise, 18:00 = sunset).
 - Server-side plugin: discovers every fuel-burning item, keeps light sources (incl. hot tubs) always on by default,

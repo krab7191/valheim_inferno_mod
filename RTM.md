@@ -343,6 +343,7 @@ never call; adds smoke toggle and rain/roof overrides for its own user.
 | 2026-10-07 | Build server ownership mode, opt-in, default off | Owner |
 | 2026-10-07 | Crossplay works with BepInEx (confirmed by owner) | Owner |
 | 2026-10-07 | In-game (local server, vanilla client): always-on, schedule (incl. midnight), fuel kept while off, clock vs. sun, sign commands, status, in-game names, settings saved — passed | Owner |
+| 2026-10-07 | Robust error logging; publish 0.1.0 beta on Thunderstore as GrundleLord-Inferno; license MIT; placeholder icon; no website link yet | Owner |
 | 2026-10-07 | Replies: combined message + answer on sign; commands use in-game item names | Owner |
 | 2026-10-07 | Frigid Kiln (`piece_FrostKiln`, ice → Liquid Frost) is a production station: vanilla by default, like the charcoal kiln. Rule: a smelter-type piece is a light source only if it has no ore slots **and** produces nothing (hot tub) | Owner |
 | 2026-10-07 | First local server run: discovery, display names and shutdown hook verified in-game | Owner |

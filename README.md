@@ -3,26 +3,27 @@
 **Server-side control over every fire, torch and fuel-burning station in Valheim. Players install nothing,
 so it works with Xbox / Game Pass crossplay.**
 
-> **Status: pre-release (0.1.0), not yet tested in-game.** Features below are implemented and unit-tested,
-> but a feature is only marked *Available* once it has also been verified on a real server
+> **Status: beta (0.1.0).** Every feature is implemented and unit-tested. Features marked *Available* have also
+> been verified in-game on a dedicated server with vanilla PC clients; the others are awaiting in-game testing
 > (see [Compatibility](#compatibility)).
 
 ## Features
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Server-only install (clients need nothing, crossplay-safe) | Implemented, awaiting in-game test | No version check, no new items: vanilla and Xbox clients join as normal |
-| Per-item settings for every fuel-burning piece | Implemented, awaiting in-game test | Found automatically at startup, including pieces added by other mods |
-| Always on | Implemented, awaiting in-game test | **Default for all light sources** (torches, sconces, fires, hearths, braziers, lanterns, hot tubs, …). Keeps fuel full everywhere, also where nobody is nearby, so bases aren't dark when you arrive. Overrides the schedule |
+| Server-only install (clients need nothing, crossplay-safe) | Available (PC clients tested; console clients not yet) | No version check, no new items: vanilla and Xbox clients join as normal |
+| Per-item settings for every fuel-burning piece | Available | Found automatically at startup, including pieces added by other mods |
+| Always on | Available | **Default for all light sources** (torches, sconces, fires, hearths, braziers, lanterns, hot tubs, …). Keeps fuel full everywhere, also where nobody is nearby, so bases aren't dark when you arrive. Overrides the schedule |
 | Fuel burn rate | Implemented, awaiting in-game test | −10 to +10, 0 = vanilla, each step 10 %: −10 uses no fuel, +10 burns twice as fast |
-| Daily on/off schedule | Implemented, awaiting in-game test | On and off time on the in-game clock (06:00 = sunrise, 18:00 = sunset), one window per day. Equal times (default 00:00/00:00) = no schedule. Fuel is kept while a light is scheduled off. Only used when *always on* is off |
+| Daily on/off schedule | Available | On and off time on the in-game clock (06:00 = sunrise, 18:00 = sunset), one window per day. Equal times (default 00:00/00:00) = no schedule. Fuel is kept while a light is scheduled off. Only used when *always on* is off |
 | Ignore rain | Implemented, awaiting in-game test | Off by default (lights go out in the rain as in vanilla). The server log lists which lights react to rain. See [Limits](#known-limits) |
 | Correct burning while nobody is nearby | Implemented, awaiting in-game test | Vanilla burns all missed time at once when a player arrives, ignoring schedules. Inferno burns it on the server as time passes, following schedule and burn rate |
 | Server ownership mode (experimental, off by default) | Implemented, awaiting in-game test | The server keeps ownership of fires, so no player's game burns their fuel or puts them out in rain: fuel only changes when the server says so. Exact burn rate and schedule. See [Server ownership mode](#server-ownership-mode-experimental) |
-| Commands in chat, on signs and in the F5 console | Implemented, awaiting in-game test | See [Commands](#commands) |
-| Config file with live reload | Implemented, awaiting in-game test | Edit through your host's web file manager; no restart |
-| `AdminOnly` permission switch | Implemented, awaiting in-game test | Off by default: anyone may change settings. Anyone can turn it on; only admins can turn it off. Inferno never changes the server's admin list |
-| Full audit log | Implemented, awaiting in-game test | Every command, every change (who, old → new) and every config-file edit goes to the BepInEx log |
+| Commands on signs and in the F5 console | Available | See [Commands](#commands) |
+| Commands in chat | Implemented, awaiting in-game test | Needs a second player online |
+| Config file with live reload | Available | Edit through your host's web file manager; no restart |
+| `AdminOnly` permission switch | Available | Off by default: anyone may change settings. Anyone can turn it on; only admins can turn it off. Inferno never changes the server's admin list |
+| Full audit log and error reporting | Available | Every command, every change (who, old → new) and every config-file edit goes to the BepInEx log |
 | Safe uninstall | Implemented, awaiting in-game test | On a normal server shutdown Inferno switches scheduled-off lights back on before the world is saved; fuel stays as it is |
 | Optional PC client mod: in-game settings menu | Implemented, awaiting in-game test | Same DLL on a PC client + [ConfigurationManager](https://thunderstore.io/c/valheim/p/Azumatt/Official_BepInEx_ConfigurationManager/) (F1). Shows and edits the **server's** settings live; read-only for non-admins while `AdminOnly` is on. See [Client mod](#optional-client-mod-pc) |
 | Per-item smoke toggle | Implemented, awaiting in-game test | Removes smoke for players who have the client mod; everyone else sees vanilla smoke |
@@ -33,13 +34,17 @@ Items without fuel (e.g. the charcoal kiln) and fires with infinite fuel are not
 
 ## Installation (server)
 
+**With a mod manager** (r2modman, Thunderstore Mod Manager, or your host's Thunderstore mod installer): install
+**GrundleLord-Inferno**. BepInExPack Valheim is installed with it.
+
+**By hand:**
 1. Install [BepInExPack Valheim](https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/) on the server
    (most hosts have a one-click option).
-2. Unzip `Inferno-<version>.zip` into the server's Valheim folder, so that you get
-   `BepInEx/plugins/Inferno/Inferno.dll` and `Inferno.Core.dll`.
+2. Copy `Inferno.dll` and `Inferno.Core.dll` (in the download's `plugins` folder) to the server's
+   `BepInEx/plugins/Inferno/` folder.
 3. Restart the server. The log (`BepInEx/LogOutput.log`) shows `Inferno … loaded` and lists every item it found.
-4. Settings are in `BepInEx/config/GrundleLord.Inferno.cfg` (created on first start). See the
-   [sample config](docs/sample-config.cfg).
+4. Settings are in `BepInEx/config/GrundleLord.Inferno.cfg` (created on first start). A fully commented
+   `sample-config.cfg` comes with the download.
 
 Players don't install anything.
 
@@ -92,7 +97,7 @@ written on a sign is replaced by a short answer, so the result stays readable un
 ## Configuration
 
 Everything the commands change is stored in `BepInEx/config/GrundleLord.Inferno.cfg`, and edits to that file
-apply live. See the fully commented [sample config](docs/sample-config.cfg).
+apply live. A fully commented `sample-config.cfg` comes with the download.
 
 | Section | Setting | Default | Meaning |
 |---------|---------|---------|---------|
@@ -154,15 +159,28 @@ These come from how Valheim works and apply to any server-only mod:
 - **Uninstall:** stop the server normally (not a forced kill), then remove the files. Fuel levels stay as they are
   and burn normally afterwards.
 
+## Troubleshooting
+
+1. Write `!fires status` on a sign (or `listkeys fires status` in the F5 console). If nothing answers, Inferno isn't
+   running on the server. The last line shows **errors since start**.
+2. Open the server's `BepInEx/LogOutput.log` (most hosts show it in their file manager). Search for `Inferno`:
+   - the **startup diagnostics** block lists versions, crossplay on/off, other mods, and any other mod that hooks
+     the same game methods as Inferno (the usual cause of conflicts);
+   - every command, change and reply is logged;
+   - errors are logged in full the first time and summarised if they repeat. Inferno skips the failing object
+     and keeps running.
+3. When reporting a problem, include the startup diagnostics block and the first error.
+
 ## Compatibility
 
 | Valheim version | Inferno version | Tested in-game |
 |-----------------|-----------------|----------------|
-| 1.0.17 | 0.1.0 | Not yet |
+| 1.0.17 | 0.1.0 | Yes: local dedicated server, vanilla PC client. Hosted servers, crossplay and console clients: not yet |
 
 Inferno targets the **latest stable Valheim release** only. New game patches are tested as they ship; older game
 versions are not supported.
 
+<!-- thunderstore:exclude-start -->
 ## Building from source
 
 Requirements: [.NET SDK 10](https://dotnet.microsoft.com/download). The game is only needed to build the plugin,
@@ -186,6 +204,7 @@ Testing: [in-game checklist](docs/in-game-test-checklist.md) (server-only first)
 Contributor and AI-agent guidelines are in [AGENTS.md](AGENTS.md); requirements and design decisions are in
 [RTM.md](RTM.md).
 
+<!-- thunderstore:exclude-end -->
 ## License
 
-Copyright © 2026 GrundleLord. All rights reserved. See [LICENSE](LICENSE).
+MIT © 2026 GrundleLord.

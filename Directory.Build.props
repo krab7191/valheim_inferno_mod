@@ -14,7 +14,7 @@
 
     <Authors>GrundleLord</Authors>
     <Product>Inferno</Product>
-    <Copyright>Copyright (c) 2026 GrundleLord. All rights reserved.</Copyright>
+    <Copyright>Copyright (c) 2026 GrundleLord. MIT License.</Copyright>
     <!-- Single source of truth for the mod version (BepInEx plugin attribute, package manifest). -->
     <Version>0.1.0</Version>
   </PropertyGroup>

@@ -47,10 +47,61 @@
     </PropertyGroup>
     <RemoveDir Directories="$(PackageRoot)" />
     <Copy SourceFiles="$(TargetDir)Inferno.dll;$(TargetDir)Inferno.Core.dll" DestinationFolder="$(PackageRoot)BepInEx/plugins/Inferno" />
-    <Copy SourceFiles="$(MSBuildThisFileDirectory)../../README.md;$(MSBuildThisFileDirectory)../../CHANGELOG.md;$(MSBuildThisFileDirectory)../../LICENSE" DestinationFolder="$(PackageRoot)BepInEx/plugins/Inferno" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)../../README.md;$(MSBuildThisFileDirectory)../../CHANGELOG.md;$(MSBuildThisFileDirectory)../../LICENSE;$(MSBuildThisFileDirectory)../../docs/sample-config.cfg" DestinationFolder="$(PackageRoot)BepInEx/plugins/Inferno" />
     <Delete Files="$(PackageZip)" />
     <ZipDirectory SourceDirectory="$(PackageRoot)" DestinationFile="$(PackageZip)" />
     <Message Importance="high" Text="Inferno package: $(PackageZip)" />
+  </Target>
+
+  <!--
+    Release builds also produce artifacts/GrundleLord-Inferno-<version>.zip for Thunderstore (upload it on
+    thunderstore.io under team GrundleLord). The manifest is generated so its version always equals <Version>.
+  -->
+  <PropertyGroup>
+    <ThunderstoreTeam>GrundleLord</ThunderstoreTeam>
+    <ThunderstoreDescription>Server-side fire control: torches, fires, hearths and hot tubs stay lit with no refuelling, plus burn rate and day/night schedules. Players install nothing, so it works with crossplay (Xbox, PlayStation).</ThunderstoreDescription>
+    <ThunderstoreDependency>denikson-BepInExPack_Valheim-5.4.2351</ThunderstoreDependency>
+  </PropertyGroup>
+
+  <!-- Thunderstore rejects files with a UTF-8 byte-order mark; WriteLinesToFile always adds one. -->
+  <UsingTask TaskName="WriteUtf8NoBom" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <File ParameterType="System.String" Required="true" />
+      <Text ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        System.IO.File.WriteAllText(File, Text.Replace("\r\n", "\n"), new System.Text.UTF8Encoding(false));
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="PackageThunderstore" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <PropertyGroup>
+      <RepoRoot>$(MSBuildThisFileDirectory)../../</RepoRoot>
+      <TsRoot>$(RepoRoot)artifacts/thunderstore/</TsRoot>
+      <TsZip>$(RepoRoot)artifacts/$(ThunderstoreTeam)-Inferno-$(Version).zip</TsZip>
+      <ReadmeSource>$([System.IO.File]::ReadAllText('$(RepoRoot)README.md'))</ReadmeSource>
+      <!-- Drop the developer section (relative links to repo files don't work on Thunderstore). -->
+      <ReadmeThunderstore>$([System.Text.RegularExpressions.Regex]::Replace($(ReadmeSource), '&lt;!-- thunderstore:exclude-start --&gt;[\s\S]*?&lt;!-- thunderstore:exclude-end --&gt;\s*', ''))</ReadmeThunderstore>
+      <TsManifest>{
+  "name": "Inferno",
+  "version_number": "$(Version)",
+  "website_url": "",
+  "description": "$(ThunderstoreDescription)",
+  "dependencies": [ "$(ThunderstoreDependency)" ]
+}</TsManifest>
+    </PropertyGroup>
+    <Error Condition="$(ThunderstoreDescription.Length) &gt; 250" Text="Thunderstore description must be at most 250 characters (is $(ThunderstoreDescription.Length))." />
+    <RemoveDir Directories="$(TsRoot)" />
+    <MakeDir Directories="$(TsRoot)plugins" />
+    <WriteUtf8NoBom File="$(TsRoot)manifest.json" Text="$(TsManifest)" />
+    <WriteUtf8NoBom File="$(TsRoot)README.md" Text="$(ReadmeThunderstore)" />
+    <Copy SourceFiles="$(RepoRoot)assets/icon.png;$(RepoRoot)CHANGELOG.md;$(RepoRoot)LICENSE" DestinationFolder="$(TsRoot)" />
+    <Copy SourceFiles="$(TargetDir)Inferno.dll;$(TargetDir)Inferno.Core.dll;$(RepoRoot)docs/sample-config.cfg" DestinationFolder="$(TsRoot)plugins" />
+    <Delete Files="$(TsZip)" />
+    <ZipDirectory SourceDirectory="$(TsRoot)" DestinationFile="$(TsZip)" />
+    <Message Importance="high" Text="Thunderstore package: $(TsZip)" />
   </Target>
 
   <Target Name="DeployPlugin" AfterTargets="Build" Condition="'$(InfernoDeployDir)' != ''">

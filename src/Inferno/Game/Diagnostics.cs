@@ -6,6 +6,7 @@ using BepInEx.Logging;
 using HarmonyLib;
 using Inferno.Core.Diagnostics;
 using UnityEngine;
+using ValheimVersion = global::Version;
 
 namespace Inferno.Game;
 
@@ -42,7 +43,7 @@ internal static class Diagnostics
         {
             _log.LogError(
                 $"Error while {where}. Inferno skipped this and keeps running. Please report it with this log "
-                + $"(Inferno {MyPluginInfo.PLUGIN_VERSION}, Valheim {global::Version.CurrentVersion}):\n{e}");
+                + $"(Inferno {MyPluginInfo.PLUGIN_VERSION}, Valheim {ValheimVersion.CurrentVersion}):\n{e}");
         }
         else
         {
@@ -52,7 +53,7 @@ internal static class Diagnostics
         }
     }
 
-    /// <summary>Logs the environment once when Inferno starts on a server.</summary>
+    /// <summary>Logs the environment once when Inferno starts on a server. Never throws.</summary>
     public static void LogStartup(Harmony? harmony, string configPath)
     {
         if (_log is null)
@@ -60,10 +61,24 @@ internal static class Diagnostics
             return;
         }
 
+        try
+        {
+            WriteStartup(harmony, configPath);
+        }
+        catch (Exception e)
+        {
+            // Diagnostics must never stop Inferno from starting.
+            Error("writing the startup diagnostics", e);
+        }
+    }
+
+    private static void WriteStartup(Harmony? harmony, string configPath)
+    {
+
         var net = ZNet.instance;
         var sb = new StringBuilder();
         sb.AppendLine("--- Inferno startup diagnostics (include this when reporting a problem) ---");
-        sb.AppendLine($"Inferno {MyPluginInfo.PLUGIN_VERSION} | Valheim {global::Version.CurrentVersion} (network {global::Version.c_networkVersion}) | BepInEx {typeof(Chainloader).Assembly.GetName().Version}");
+        sb.AppendLine($"Inferno {MyPluginInfo.PLUGIN_VERSION} | Valheim {ValheimVersion.CurrentVersion} (network {ValheimVersion.c_networkVersion}) | BepInEx {typeof(Chainloader).Assembly.GetName().Version}");
         sb.AppendLine($"Server: {(net.IsDedicated() ? "dedicated" : "hosted from game")} | crossplay {(ZNet.m_onlineBackend == OnlineBackendType.PlayFab ? "on" : "off")} | world '{net.GetWorldName()}' | OS {Environment.OSVersion} ({Application.platform})");
         sb.AppendLine($"Config: {configPath}");
 
@@ -74,7 +89,7 @@ internal static class Diagnostics
             .ToList();
         sb.AppendLine(others.Count == 0 ? "Other mods: none" : $"Other mods ({others.Count}): {string.Join(", ", others)}");
         sb.Append(SharedHooks(harmony));
-        _log.LogInfo(sb.ToString().TrimEnd());
+        _log!.LogInfo(sb.ToString().TrimEnd());
     }
 
     // Another mod patching the same game method is the most likely cause of a conflict; name them up front.

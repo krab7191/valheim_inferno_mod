@@ -61,6 +61,9 @@ internal sealed class ConfigSettingsStore : ISettingsStore, IDisposable
     /// <summary>Raised on a client when the player edits a mirrored setting; carries the config section.</summary>
     public event Action<string>? MenuEdited;
 
+    /// <summary>Path of the config file.</summary>
+    public string ConfigPath => _config.ConfigFilePath;
+
     /// <summary>True while the entries show a remote server's settings.</summary>
     public bool IsMirroring => _remote is not null;
 
