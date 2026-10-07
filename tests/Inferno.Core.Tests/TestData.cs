@@ -10,6 +10,8 @@ internal static class TestData
 {
     public static CatalogItem Torch => new("piece_groundtorch_wood", "Standing wood torch", ItemKind.LightSource, new FuelItemInfo(4f, true));
 
+    public static CatalogItem IronTorch => new("piece_groundtorch", "Standing iron torch", ItemKind.LightSource, new FuelItemInfo(6f, true));
+
     public static CatalogItem Hearth => new("hearth", "Hearth", ItemKind.LightSource, new FuelItemInfo(20f, true));
 
     public static CatalogItem Smelter => new("smelter", "Smelter", ItemKind.FuelStation, new FuelItemInfo(20f, false));

@@ -20,6 +20,8 @@ on-screen text? Open your inventory → **Compendium → Logs**. Items are named
 | `!fires status` | Top left: "Inferno … running on Valheim …" and a few lines of numbers |
 | `!fires help` | Top left: a short list of commands |
 | `!fires show hot tub` | Top left: the hot tub's settings |
+| `!fires preset night torches` | Torches go out until dusk (18:00), then light without using fuel |
+| `!fires undo` | Puts back what your last command changed |
 
 If **nothing** appears after 10 seconds, tell us: that's important.
 

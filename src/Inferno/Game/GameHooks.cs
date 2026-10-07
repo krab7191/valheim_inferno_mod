@@ -158,6 +158,32 @@ internal static class GameHooks
         }
     }
 
+    /// <summary>
+    /// Every object update the server receives from a player passes through here. New fires and edited signs are
+    /// handed to the scanner immediately, so a new torch fills and a sign command answers within a second.
+    /// </summary>
+    [HarmonyPatch(typeof(ZDO), nameof(ZDO.Deserialize))]
+    private static class ObjectArrivedPatch
+    {
+        private static void Postfix(ZDO __instance)
+        {
+            var runtime = InfernoRuntime.Current;
+            if (runtime is null)
+            {
+                return;
+            }
+
+            try
+            {
+                runtime.Scanner.Notice(__instance);
+            }
+            catch (Exception e)
+            {
+                Diagnostics.Error("noticing a new or changed object", e);
+            }
+        }
+    }
+
     /// <summary>Before the final world save, undo schedule switch-offs so an uninstall leaves no fire dark.</summary>
     [HarmonyPatch(typeof(ZNet), nameof(ZNet.Shutdown))]
     private static class ShutdownPatch

@@ -64,6 +64,28 @@ public class CommandParserTests
         Assert.Equal(target, command.Target);
     }
 
+    [Theory]
+    [InlineData("!fires schedule torches night", "18:00-06:00")]
+    [InlineData("!fires schedule torches DAY", "06:00-18:00")]
+    [InlineData("!fires schedule hot tub off", "always on")]
+    public void Parse_ScheduleWords(string text, string expected) =>
+        Assert.Equal(expected, Ok(text).Schedule.ToString());
+
+    [Theory]
+    [InlineData("!fires preset night", "night", null)]
+    [InlineData("!fires preset Eternal hot tub", "Eternal", "hot tub")]
+    [InlineData("!fires preset vanilla torches", "vanilla", "torches")]
+    public void Parse_Preset(string text, string name, string? target)
+    {
+        var command = Ok(text);
+        Assert.Equal(CommandKind.Preset, command.Kind);
+        Assert.Equal(name, command.Name);
+        Assert.Equal(target, command.Target);
+    }
+
+    [Fact]
+    public void Parse_Undo() => Assert.Equal(CommandKind.Undo, Ok("!fires undo").Kind);
+
     [Fact]
     public void Parse_Status() => Assert.Equal(CommandKind.Status, Ok("!fires status").Kind);
 
@@ -201,6 +223,9 @@ public class CommandParserTests
     [Theory]
     [InlineData("!fires help me", "Usage: !fires help")]
     [InlineData("!fires status now", "Usage: !fires status")]
+    [InlineData("!fires preset", "Usage: !fires preset")]
+    [InlineData("!fires undo it", "Usage: !fires undo")]
+    [InlineData("!fires schedule torches evening", "Usage: !fires schedule")]
     [InlineData("!fires show", "Usage: !fires show")]
     [InlineData("!fires reset", "Usage: !fires reset")]
     [InlineData("!fires alwayson lights maybe", "Usage: !fires alwayson")]

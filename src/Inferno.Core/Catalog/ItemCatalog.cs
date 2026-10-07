@@ -17,6 +17,9 @@ public sealed class ItemCatalog
     /// <summary>Target that selects every fuel station.</summary>
     public const string StationsGroup = "stations";
 
+    /// <summary>Shortest word that can select a group of items by name.</summary>
+    public const int MinKeywordLength = 3;
+
     private readonly Dictionary<string, CatalogItem> _byName = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<CatalogItem> _items = [];
 
@@ -98,8 +101,53 @@ public sealed class ItemCatalog
 
         var key = Normalize(target);
         var byName = key.Length == 0 ? [] : _items.Where(i => Normalize(i.DisplayName) == key).ToList();
-        items = byName;
-        return byName.Count > 0;
+        if (byName.Count > 0)
+        {
+            items = byName;
+            return true;
+        }
+
+        items = MatchKeyword(key);
+        return items.Count > 0;
+    }
+
+    /// <summary>
+    /// Word groups: "torches", "torch", "braziers", "fires", … select every item whose in-game name contains the
+    /// word (singular or plural). At least <see cref="MinKeywordLength"/> letters, so short fragments don't match
+    /// half the catalog.
+    /// </summary>
+    private List<CatalogItem> MatchKeyword(string key)
+    {
+        foreach (var stem in Stems(key))
+        {
+            if (stem.Length < MinKeywordLength)
+            {
+                continue;
+            }
+
+            var matches = _items.Where(i => Normalize(i.DisplayName).Contains(stem)).ToList();
+            if (matches.Count > 0)
+            {
+                return matches;
+            }
+        }
+
+        return [];
+    }
+
+    // "torches" → torches, torche, torch; "fires" → fires, fire. Tried in that order.
+    private static IEnumerable<string> Stems(string key)
+    {
+        yield return key;
+        if (key.EndsWith("s", StringComparison.Ordinal))
+        {
+            yield return key.Substring(0, key.Length - 1);
+        }
+
+        if (key.EndsWith("es", StringComparison.Ordinal))
+        {
+            yield return key.Substring(0, key.Length - 2);
+        }
     }
 
     /// <summary>

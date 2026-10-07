@@ -126,13 +126,19 @@ public static class CommandParser
             case "BURNRATE" when t.Length >= 4 && TryParseBurnRate(t[t.Length - 1], out var level):
                 return new ParsedCommand(CommandKind.BurnRate, Item(t, 1), number: level);
 
-            case "SCHEDULE" when t.Length >= 4 && string.Equals(t[t.Length - 1], "off", StringComparison.OrdinalIgnoreCase):
-                return new ParsedCommand(CommandKind.Schedule, Item(t, 1), schedule: DailySchedule.AlwaysOn);
+            case "SCHEDULE" when t.Length >= 4 && TryParseScheduleWord(t[t.Length - 1], out var named):
+                return new ParsedCommand(CommandKind.Schedule, Item(t, 1), schedule: named);
 
             case "SCHEDULE" when t.Length >= 5
                 && ClockSetting.TryParse(t[t.Length - 2], out var onTime)
                 && ClockSetting.TryParse(t[t.Length - 1], out var offTime):
                 return new ParsedCommand(CommandKind.Schedule, Item(t, 2), schedule: new DailySchedule(onTime, offTime));
+
+            case "PRESET" when t.Length >= 3:
+                return new ParsedCommand(CommandKind.Preset, t.Length > 3 ? Item(t, 0, first: 3) : null, name: t[2]);
+
+            case "UNDO" when t.Length == 2:
+                return new ParsedCommand(CommandKind.Undo);
 
             case "ADMINONLY" when t.Length == 3 && TryParseOnOff(t[2], out var adminOnly):
                 return new ParsedCommand(CommandKind.AdminOnly, flag: adminOnly);
@@ -161,7 +167,9 @@ public static class CommandParser
         "ALWAYSON" => $"Usage: {prefix} alwayson <item> on|off",
         "SMOKE" => $"Usage: {prefix} smoke <item> on|off  (seen only by players with the Inferno client mod)",
         "BURNRATE" => $"Usage: {prefix} burnrate <item> <{BurnRate.Min}..{BurnRate.Max}>  (0 = vanilla, each step 10 %)",
-        "SCHEDULE" => $"Usage: {prefix} schedule <item> <on HH:MM> <off HH:MM>   or   {prefix} schedule <item> off",
+        "SCHEDULE" => $"Usage: {prefix} schedule <item> <on HH:MM> <off HH:MM>   or   {prefix} schedule <item> night|day|off",
+        "PRESET" => $"Usage: {prefix} preset eternal|night|vanilla [item]",
+        "UNDO" => $"Usage: {prefix} undo",
         "ADMINONLY" => $"Usage: {prefix} adminonly on|off",
         "HIDECOMMANDS" => $"Usage: {prefix} hidecommands on|off",
         "IGNORERAIN" => $"Usage: {prefix} ignorerain on|off",
@@ -169,9 +177,29 @@ public static class CommandParser
         _ => $"Unknown command '{subcommand}'. Type {prefix} help",
     };
 
-    // Joins the item words: everything after the command word, minus the command's trailing arguments.
-    private static string Item(string[] tokens, int trailingArguments) =>
-        string.Join(" ", tokens, 2, tokens.Length - 2 - trailingArguments);
+    // Joins the item words: everything after the command word (or after `first`), minus the trailing arguments.
+    private static string Item(string[] tokens, int trailingArguments, int first = 2) =>
+        string.Join(" ", tokens, first, tokens.Length - first - trailingArguments);
+
+    // "off" = no schedule; "night" = sunset to sunrise; "day" = sunrise to sunset.
+    private static bool TryParseScheduleWord(string text, out DailySchedule schedule)
+    {
+        switch (text.ToUpperInvariant())
+        {
+            case "OFF":
+                schedule = DailySchedule.AlwaysOn;
+                return true;
+            case "NIGHT":
+                schedule = DailySchedule.Night;
+                return true;
+            case "DAY":
+                schedule = DailySchedule.Day;
+                return true;
+            default:
+                schedule = default;
+                return false;
+        }
+    }
 
     private static bool TryParseOnOff(string text, out bool value)
     {

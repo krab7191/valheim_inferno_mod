@@ -1,6 +1,10 @@
 using System;
+using System.Collections.Generic;
+using Inferno.Core.Catalog;
 using Inferno.Core.Commands;
+using Inferno.Core.Fuel;
 using Inferno.Core.Settings;
+using Inferno.Core.Time;
 using Xunit;
 
 namespace Inferno.Core.Tests.Commands;
@@ -104,7 +108,7 @@ public class CommandExecutorTests
     [Theory]
     [InlineData("!fires show nope", "Unknown item 'nope'. Use 'list' to see all items.")]
     [InlineData("!fires alwayson nope on", "Unknown item 'nope'. Use 'list' to see all items.")]
-    [InlineData("!fires show torch", "Unknown item 'torch'. Did you mean: Standing wood torch?")]
+    [InlineData("!fires show standing wood torchx", "Unknown item 'standing wood torchx'. Did you mean: Standing wood torch?")]
     public void UnknownTarget_Explains(string text, string expected) =>
         Assert.Equal([expected], Run(text).Reply);
 
@@ -141,6 +145,162 @@ public class CommandExecutorTests
 
         Assert.Equal(["BurnRate = -3: 1 of 1 item(s) changed."], result.Reply);
         Assert.Equal(-3, _store.GetItem("piece_groundtorch_wood").BurnRateLevel);
+    }
+
+    // ---- Word groups, presets, undo ----
+
+    [Fact]
+    public void WordGroup_SelectsMatchingItems_AndListsThem()
+    {
+        var catalog = new ItemCatalog([TestData.Torch, TestData.IronTorch, TestData.Hearth, TestData.Smelter]);
+        var store = new FakeSettingsStore(catalog);
+        var executor = new CommandExecutor(catalog, store);
+        CommandParser.Parse("!fires burnrate torches -10", out var command, out _);
+
+        var result = executor.Execute(command, Player);
+
+        Assert.Equal(["BurnRate = -10: 2 of 2 item(s) changed.", "Changed: Standing iron torch, Standing wood torch"], result.Reply);
+        Assert.Equal(0, store.GetItem("hearth").BurnRateLevel);
+    }
+
+    [Fact]
+    public void FixedGroups_DoNotListNames() =>
+        Assert.Equal(["AlwaysOn = off: 2 of 2 item(s) changed."], Run("!fires alwayson lights off").Reply);
+
+    [Fact]
+    public void ManyChanges_ListIsShortened()
+    {
+        var items = new List<CatalogItem>();
+        for (var i = 0; i < 6; i++)
+        {
+            items.Add(new CatalogItem($"torch_{i}", $"Torch {i}", ItemKind.LightSource, new FuelItemInfo(4f, true)));
+        }
+
+        var catalog = new ItemCatalog(items);
+        var executor = new CommandExecutor(catalog, new FakeSettingsStore(catalog));
+        CommandParser.Parse("!fires alwayson torches off", out var command, out _);
+
+        Assert.Equal("Changed: Torch 0, Torch 1, Torch 2, Torch 3, +2 more", executor.Execute(command, Player).Reply[1]);
+    }
+
+    [Fact]
+    public void Schedule_NightWord()
+    {
+        Run("!fires schedule lights night");
+
+        Assert.Equal("18:00-06:00", _store.GetItem("hearth").Schedule.ToString());
+    }
+
+    [Fact]
+    public void Preset_Night_AppliesToLightsByDefault_KeepsSmoke()
+    {
+        Run("!fires smoke hearth off");
+
+        var result = Run("!fires preset night");
+
+        Assert.Equal("Preset = night: 2 of 2 item(s) changed.", result.Reply[0]);
+        var hearth = _store.GetItem("hearth");
+        Assert.False(hearth.AlwaysOn);
+        Assert.Equal(-10, hearth.BurnRateLevel);
+        Assert.Equal(DailySchedule.Night, hearth.Schedule);
+        Assert.False(hearth.Smoke);
+        Assert.Equal(ItemSettings.Vanilla, _store.GetItem("smelter"));
+    }
+
+    [Fact]
+    public void Preset_Night_SkipsItemsWithoutSwitch()
+    {
+        var result = Run("!fires preset night all");
+
+        Assert.Equal("Preset = night: 2 of 3 item(s) changed.", result.Reply[0]);
+        Assert.Contains("1 item(s) skipped: they have no on/off switch and can't follow a schedule.", result.Reply);
+    }
+
+    [Fact]
+    public void Preset_VanillaThenEternal()
+    {
+        Run("!fires preset vanilla");
+        Assert.False(_store.GetItem("hearth").AlwaysOn);
+
+        Run("!fires preset eternal hearth");
+        Assert.Equal(ItemSettings.AlwaysOnDefault, _store.GetItem("hearth"));
+        Assert.False(_store.GetItem("piece_groundtorch_wood").AlwaysOn);
+    }
+
+    [Fact]
+    public void Preset_Unknown_ListsPresets() =>
+        Assert.Equal(
+            ["Unknown preset 'party'. Presets: eternal (always on, never needs fuel (default for lights)), night (lit 18:00-06:00, never uses fuel), vanilla (plain game behaviour)."],
+            Run("!fires preset party").Reply);
+
+    [Fact]
+    public void Undo_RevertsOwnLastItemChange()
+    {
+        Run("!fires burnrate hearth 5");
+        Run("!fires alwayson hearth off");
+
+        var result = Run("!fires undo");
+
+        Assert.Equal(["Undone: AlwaysOn = off on 'hearth'."], result.Reply);
+        var change = Assert.Single(result.Changes);
+        Assert.Equal("Undo", change.Setting);
+        Assert.True(_store.GetItem("hearth").AlwaysOn);
+        Assert.Equal(5, _store.GetItem("hearth").BurnRateLevel);
+        Assert.Equal(["Nothing to undo."], Run("!fires undo").Reply);
+    }
+
+    [Fact]
+    public void Undo_IsPerPlayer()
+    {
+        Run("!fires burnrate hearth 5", Player);
+
+        Assert.Equal(["Nothing to undo."], Run("!fires undo", Admin).Reply);
+        Assert.Equal(["Undone: BurnRate = 5 on 'hearth'."], Run("!fires undo", Player).Reply);
+        Assert.Equal(0, _store.GetItem("hearth").BurnRateLevel);
+    }
+
+    [Fact]
+    public void Undo_GeneralSetting_RestoresOnlyThatSetting()
+    {
+        Run("!fires ignorerain on", Player);
+        Run("!fires hidecommands off", Admin);
+
+        var result = Run("!fires undo", Player);
+
+        Assert.Equal(["Undone: IgnoreRain = on."], result.Reply);
+        Assert.Equal("[General] IgnoreRain: on -> off", Assert.Single(result.Changes).ToString());
+        Assert.False(_store.General.IgnoreRain);
+        Assert.False(_store.General.HideCommands);
+    }
+
+    [Fact]
+    public void Undo_SkipsItemsAlreadyBack()
+    {
+        Run("!fires alwayson hearth off");
+        Run("!fires alwayson hearth on", Admin);
+
+        var result = Run("!fires undo");
+
+        Assert.Empty(result.Changes);
+        Assert.True(_store.GetItem("hearth").AlwaysOn);
+    }
+
+    [Fact]
+    public void NoChange_DoesNotReplaceUndo()
+    {
+        Run("!fires burnrate hearth 5");
+        Run("!fires alwayson hearth on"); // already on: nothing changed
+
+        Assert.Equal(["Undone: BurnRate = 5 on 'hearth'."], Run("!fires undo").Reply);
+    }
+
+    [Fact]
+    public void Undo_NeedsPermission()
+    {
+        Run("!fires burnrate hearth 5");
+        _store.General = _store.General.WithAdminOnly(true);
+
+        Assert.True(Run("!fires undo").Denied);
     }
 
     [Fact]

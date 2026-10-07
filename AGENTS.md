@@ -15,7 +15,7 @@ Read it before starting any task.
 ## Ground rules
 
 1. **No unilateral decisions.** Anything that changes behaviour, scope, config surface, dependencies or project
-   structure needs the project owner's approval. Ask, then record the answer in `RTM.md` §6/§7.
+   structure needs the project owner's approval. Ask, then record the answer in `RTM.md` §6/§8; new ideas go into the backlog (§7).
 2. **Git is handled by the project owner.** Do not run `git add/commit/push/pull/rebase/reset/checkout/stash`
    or any other command that changes git state. Read-only commands (`git status`, `git diff`, `git log`) are fine.
 3. **Server-only first — it is the product.** Most players are on console or won't install mods. The optional

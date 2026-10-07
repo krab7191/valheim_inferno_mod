@@ -16,6 +16,7 @@ namespace Inferno.Game;
 internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsStore store, CommandService commands, ServerOwnership ownership, ManualLogSource log)
 {
     private const float ApplyIntervalSeconds = 5f;
+    private const float SoonSeconds = 0.5f;
     private const float SweepIntervalSeconds = 30f;
     private const int SweepChunkSize = 20000;
     private const long FallbackDayLengthSeconds = 1800;
@@ -32,6 +33,11 @@ internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsSto
     private readonly List<ZDOID> _sweepSigns = [];
     private readonly Dictionary<ZDOID, float> _baselines = [];
     private readonly Dictionary<string, ItemSettings> _settingsCache = [];
+
+    // Objects seen arriving from players (new fires, edited signs) since the current sweep started.
+    private readonly HashSet<ZDOID> _fuelSet = [];
+    private readonly HashSet<ZDOID> _signSet = [];
+    private readonly List<ZDOID> _arrivedSinceSweep = [];
     private List<ZDOID> _fuel = [];
     private List<ZDOID> _signs = [];
     private int _sweepIndex = -1;
@@ -70,6 +76,34 @@ internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsSto
 
     /// <summary>The in-game clock as Inferno sees it, for <c>!fires status</c>.</summary>
     public string CurrentTimeText => CurrentTime().ToString();
+
+    /// <summary>
+    /// Called when the server receives an object's data from a player. New fires are tracked right away and
+    /// edited signs are read right away, instead of waiting for the next sweep (up to 30 s) or pass (5 s).
+    /// </summary>
+    public void Notice(ZDO zdo)
+    {
+        var prefab = zdo.GetPrefab();
+        if (discovery.ByHash.ContainsKey(prefab))
+        {
+            if (_fuelSet.Add(zdo.m_uid))
+            {
+                _fuel.Add(zdo.m_uid);
+                _arrivedSinceSweep.Add(zdo.m_uid);
+                ApplySoon();
+            }
+        }
+        else if (discovery.SignHashes.Contains(prefab))
+        {
+            if (_signSet.Add(zdo.m_uid))
+            {
+                _signs.Add(zdo.m_uid);
+                _arrivedSinceSweep.Add(zdo.m_uid);
+            }
+
+            ApplySoon();
+        }
+    }
 
     /// <summary>Call every frame.</summary>
     public void Tick(float now)
@@ -156,6 +190,7 @@ internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsSto
         _sweepBuffer.AddRange(ObjectsById(ZDOMan.instance).Values);
         _sweepFuel.Clear();
         _sweepSigns.Clear();
+        _arrivedSinceSweep.Clear();
         _sweepIndex = 0;
     }
 
@@ -193,8 +228,32 @@ internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsSto
             return;
         }
 
-        // Swap in the new lists; drop baselines of objects that no longer exist.
-        (_fuel, _signs) = (new List<ZDOID>(_sweepFuel), new List<ZDOID>(_sweepSigns));
+        // Swap in the new lists (plus anything that arrived during the sweep); drop baselines of objects that no
+        // longer exist.
+        _fuelSet.Clear();
+        _signSet.Clear();
+        _fuelSet.UnionWith(_sweepFuel);
+        _signSet.UnionWith(_sweepSigns);
+        foreach (var id in _arrivedSinceSweep)
+        {
+            var zdo = ZDOMan.instance?.GetZDO(id);
+            if (zdo is null)
+            {
+                continue;
+            }
+
+            if (discovery.ByHash.ContainsKey(zdo.GetPrefab()))
+            {
+                _fuelSet.Add(id);
+            }
+            else
+            {
+                _signSet.Add(id);
+            }
+        }
+
+        (_fuel, _signs) = (new List<ZDOID>(_fuelSet), new List<ZDOID>(_signSet));
+        _arrivedSinceSweep.Clear();
         var alive = new HashSet<ZDOID>(_fuel);
         var gone = new List<ZDOID>();
         foreach (var id in _baselines.Keys)
@@ -292,6 +351,9 @@ internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsSto
             zdo.Set(ZDOVars.s_text, answer);
         }
     }
+
+    // Run the next pass shortly (batched: many arrivals in one moment still mean one pass).
+    private void ApplySoon() => _nextApply = Math.Min(_nextApply, UnityEngine.Time.realtimeSinceStartup + SoonSeconds);
 
     private static FuelState ReadState(ZDO zdo, CatalogItem item)
     {

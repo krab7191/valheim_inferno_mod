@@ -5,14 +5,18 @@ namespace Inferno.Core.Commands;
 /// <summary>A syntactically valid <c>!fires</c> command. Targets are not checked against the catalog yet.</summary>
 public sealed class ParsedCommand
 {
-    internal ParsedCommand(CommandKind kind, string? target = null, bool flag = false, int number = 0, DailySchedule schedule = default)
+    internal ParsedCommand(CommandKind kind, string? target = null, bool flag = false, int number = 0, DailySchedule schedule = default, string? name = null)
     {
         Kind = kind;
         Target = target;
         Flag = flag;
         Number = number;
         Schedule = schedule;
+        Name = name;
     }
+
+    /// <summary>The preset name of <see cref="CommandKind.Preset"/>.</summary>
+    public string? Name { get; }
 
     /// <summary>Which command.</summary>
     public CommandKind Kind { get; }

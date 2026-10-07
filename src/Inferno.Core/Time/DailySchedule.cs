@@ -17,6 +17,12 @@ public readonly struct DailySchedule : IEquatable<DailySchedule>
     /// <summary>A schedule that is always on (on = off = 00:00), the default.</summary>
     public static DailySchedule AlwaysOn => default;
 
+    /// <summary>Sunset to sunrise: 18:00 to 06:00.</summary>
+    public static DailySchedule Night => new(TimeOfDay.FromHourMinute(18, 0), TimeOfDay.FromHourMinute(6, 0));
+
+    /// <summary>Sunrise to sunset: 06:00 to 18:00.</summary>
+    public static DailySchedule Day => new(TimeOfDay.FromHourMinute(6, 0), TimeOfDay.FromHourMinute(18, 0));
+
     /// <summary>Time the light turns on.</summary>
     public TimeOfDay OnTime { get; }
 

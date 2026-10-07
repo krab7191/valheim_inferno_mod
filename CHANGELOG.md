@@ -5,6 +5,22 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-07
+
+Tested on a local dedicated server (Valheim 1.0.17): presets, word groups, instant sign answers. `undo` is
+unit-tested but not yet tested in-game.
+
+### Added
+- Presets: `!fires preset eternal|night|vanilla [item]` (e.g. `!fires preset night` = lights lit 18:00–06:00 without
+  using fuel).
+- Word groups: `torches`, `braziers`, `fires`, `lanterns`, … select every item with that word in its name; replies
+  list what changed. Schedule words `night` and `day`.
+- `!fires undo` reverts your own last change.
+
+### Changed
+- New fires are filled and sign commands answered within about a second (previously up to 30 s / 5 s).
+- `!fires torch` style words now select matching items instead of only suggesting names.
+
 ## [0.1.0] - 2026-10-07
 
 First public beta. Tested in-game on a local dedicated server (Valheim 1.0.17) with vanilla PC clients.

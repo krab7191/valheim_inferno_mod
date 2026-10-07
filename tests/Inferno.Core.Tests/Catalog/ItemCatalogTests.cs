@@ -68,11 +68,32 @@ public class ItemCatalogTests
 
         Assert.True(catalog.TryResolve("standing wood torch", out var items));
         Assert.Equal(["CastleKit_groundtorch_unlit", "piece_groundtorch_wood"], items.Select(i => i.PrefabName));
-        Assert.Equal(["Standing wood torch"], catalog.Suggest("torch"));
+        Assert.Equal(["Standing wood torch"], catalog.Suggest("standing wood torchx"));
     }
 
     [Theory]
-    [InlineData("torch", new[] { "Standing wood torch" })]
+    [InlineData("torches", new[] { "piece_groundtorch", "piece_groundtorch_wood" })]
+    [InlineData("torch", new[] { "piece_groundtorch", "piece_groundtorch_wood" })]
+    [InlineData("TORCH", new[] { "piece_groundtorch", "piece_groundtorch_wood" })]
+    [InlineData("hearths", new[] { "hearth" })]
+    [InlineData("iron", new[] { "piece_groundtorch" })]
+    public void TryResolve_WordGroups(string target, string[] expected)
+    {
+        var catalog = new ItemCatalog([TestData.Torch, TestData.IronTorch, TestData.Hearth, TestData.Smelter]);
+
+        Assert.True(catalog.TryResolve(target, out var items));
+        Assert.Equal(expected, items.Select(i => i.PrefabName));
+    }
+
+    [Theory]
+    [InlineData("to")]   // too short to be a word group
+    [InlineData("tos")]  // "to" after removing the plural s: too short
+    [InlineData("xyzes")]
+    public void TryResolve_ShortOrUnknownWords_DoNotMatch(string target) =>
+        Assert.False(new ItemCatalog([TestData.Torch, TestData.IronTorch]).TryResolve(target, out _));
+
+    [Theory]
+    [InlineData("standing wood torchx", new[] { "Standing wood torch" })]
     [InlineData("standing wood torch extra", new[] { "Standing wood torch" })] // typed name contains a real one
     [InlineData("t", new[] { "Hearth", "Smelter", "Standing wood torch" })]
     [InlineData("zzz", new string[0])]

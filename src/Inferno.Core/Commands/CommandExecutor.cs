@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using Inferno.Core.Catalog;
 using Inferno.Core.Permissions;
 using Inferno.Core.Settings;
@@ -13,20 +14,23 @@ public sealed class CommandExecutor
     /// <summary>Config section name of the server-wide settings.</summary>
     public const string GeneralSection = "General";
 
+    // Names listed in a reply before "+N more".
+    private const int MaxNamesInReply = 4;
+
     private static readonly string[] HelpLines =
     [
         "Inferno: type '!fires <command>' in chat or on a sign, or 'listkeys fires <command>' in the F5 console.",
-        "<item> = the name as in game (e.g. hot tub, standing wood torch), or: all, lights, stations.",
-        "status  ·  list [all|lights|stations]  ·  show <item>  ·  reset <item>",
-        "alwayson <item> on|off  ·  smoke <item> on|off (client mod only)",
-        "burnrate <item> <-10..10>   (0 = vanilla, each step 10 %)",
-        "schedule <item> <on HH:MM> <off HH:MM>   |   schedule <item> off",
-        "adminonly on|off  ·  hidecommands on|off  ·  ignorerain on|off  ·  serverownership on|off",
+        "<item> = name as in game (hot tub, standing wood torch), a word (torches, braziers, fires), or all / lights / stations.",
+        "preset eternal|night|vanilla [item]  ·  undo  ·  status  ·  list  ·  show <item>  ·  reset <item>",
+        "alwayson <item> on|off  ·  burnrate <item> <-10..10> (0 = vanilla, 10 % per step)",
+        "schedule <item> night|day|off  or  schedule <item> <on HH:MM> <off HH:MM>",
+        "smoke <item> on|off (client mod only)  ·  adminonly / hidecommands / ignorerain / serverownership on|off",
     ];
 
     private readonly ItemCatalog _catalog;
     private readonly ISettingsStore _store;
     private readonly Func<IReadOnlyList<string>> _status;
+    private readonly Dictionary<string, UndoEntry> _undo = new(StringComparer.Ordinal);
 
     /// <summary>Creates an executor.</summary>
     /// <param name="catalog">All known items.</param>
@@ -72,15 +76,17 @@ public sealed class CommandExecutor
 
         return command.Kind switch
         {
-            CommandKind.AlwaysOn => UpdateItems(command.Target!, "AlwaysOn", OnOff(command.Flag), (_, s) => s.WithAlwaysOn(command.Flag)),
-            CommandKind.Smoke => UpdateItems(command.Target!, "Smoke", OnOff(command.Flag), (_, s) => s.WithSmoke(command.Flag)),
-            CommandKind.BurnRate => UpdateItems(command.Target!, "BurnRate", Number(command.Number), (_, s) => s.WithBurnRate(command.Number)),
-            CommandKind.Schedule => UpdateItems(command.Target!, "Schedule", command.Schedule.ToString(), (i, s) => i.CanSchedule ? s.WithSchedule(command.Schedule) : null),
-            CommandKind.Reset => UpdateItems(command.Target!, "Settings", "defaults", (i, _) => ItemSettings.DefaultFor(i.Kind)),
-            CommandKind.AdminOnly => UpdateGeneral("AdminOnly", g => g.AdminOnly, g => g.WithAdminOnly(command.Flag), command.Flag),
-            CommandKind.HideCommands => UpdateGeneral("HideCommands", g => g.HideCommands, g => g.WithHideCommands(command.Flag), command.Flag),
-            CommandKind.IgnoreRain => UpdateGeneral("IgnoreRain", g => g.IgnoreRain, g => g.WithIgnoreRain(command.Flag), command.Flag),
-            _ => UpdateGeneral("ServerOwnership", g => g.ServerOwnership, g => g.WithServerOwnership(command.Flag), command.Flag),
+            CommandKind.AlwaysOn => UpdateItems(sender, command.Target!, "AlwaysOn", OnOff(command.Flag), (_, s) => s.WithAlwaysOn(command.Flag)),
+            CommandKind.Smoke => UpdateItems(sender, command.Target!, "Smoke", OnOff(command.Flag), (_, s) => s.WithSmoke(command.Flag)),
+            CommandKind.BurnRate => UpdateItems(sender, command.Target!, "BurnRate", Number(command.Number), (_, s) => s.WithBurnRate(command.Number)),
+            CommandKind.Schedule => UpdateItems(sender, command.Target!, "Schedule", command.Schedule.ToString(), (i, s) => i.CanSchedule ? s.WithSchedule(command.Schedule) : null),
+            CommandKind.Reset => UpdateItems(sender, command.Target!, "Settings", "defaults", (i, _) => ItemSettings.DefaultFor(i.Kind)),
+            CommandKind.Preset => ApplyPreset(sender, command),
+            CommandKind.Undo => Undo(sender),
+            CommandKind.AdminOnly => UpdateGeneral(sender, "AdminOnly", g => g.AdminOnly, (g, v) => g.WithAdminOnly(v), command.Flag),
+            CommandKind.HideCommands => UpdateGeneral(sender, "HideCommands", g => g.HideCommands, (g, v) => g.WithHideCommands(v), command.Flag),
+            CommandKind.IgnoreRain => UpdateGeneral(sender, "IgnoreRain", g => g.IgnoreRain, (g, v) => g.WithIgnoreRain(v), command.Flag),
+            _ => UpdateGeneral(sender, "ServerOwnership", g => g.ServerOwnership, (g, v) => g.WithServerOwnership(v), command.Flag),
         };
     }
 
@@ -114,7 +120,23 @@ public sealed class CommandExecutor
         return Ok(lines);
     }
 
-    private CommandResult UpdateItems(string target, string settingName, string newValueText, Func<CatalogItem, ItemSettings, ItemSettings?> update)
+    private CommandResult ApplyPreset(CommandSender sender, ParsedCommand command)
+    {
+        if (!Presets.TryGet(command.Name, out var preset))
+        {
+            var names = string.Join(", ", Presets.All.Select(p => $"{p.Name} ({p.Description})"));
+            return Ok([$"Unknown preset '{command.Name}'. Presets: {names}."]);
+        }
+
+        return UpdateItems(sender, command.Target ?? preset.DefaultTarget, "Preset", preset.Name, preset.Apply);
+    }
+
+    private CommandResult UpdateItems(
+        CommandSender sender,
+        string target,
+        string settingName,
+        string newValueText,
+        Func<CatalogItem, ItemSettings, ItemSettings?> update)
     {
         if (!TryResolve(target, out var items, out var error))
         {
@@ -122,6 +144,8 @@ public sealed class CommandExecutor
         }
 
         var changes = new List<SettingChange>();
+        var undo = new List<KeyValuePair<string, ItemSettings>>();
+        var changedNames = new List<string>();
         var skipped = 0;
         foreach (var item in items)
         {
@@ -137,6 +161,8 @@ public sealed class CommandExecutor
             {
                 _store.SetItem(item.PrefabName, after);
                 changes.Add(new SettingChange(item.PrefabName, settingName, before.ToString(), after.ToString()));
+                undo.Add(new KeyValuePair<string, ItemSettings>(item.PrefabName, before));
+                changedNames.Add(item.DisplayName);
             }
         }
 
@@ -144,15 +170,32 @@ public sealed class CommandExecutor
         {
             $"{settingName} = {newValueText}: {changes.Count} of {items.Count} item(s) changed.",
         };
+
+        // A word like "fires" can select more than the player expects: say exactly what changed.
+        if (changedNames.Count > 1 && !IsFixedGroup(target))
+        {
+            reply.Add("Changed: " + NameList(changedNames));
+        }
+
         if (skipped > 0)
         {
             reply.Add($"{skipped} item(s) skipped: they have no on/off switch and can't follow a schedule.");
         }
 
+        if (changes.Count > 0)
+        {
+            _undo[sender.PlatformId] = UndoEntry.ForItems($"{settingName} = {newValueText} on '{target}'", undo);
+        }
+
         return new CommandResult(reply, changes, denied: false);
     }
 
-    private CommandResult UpdateGeneral(string settingName, Func<GeneralSettings, bool> read, Func<GeneralSettings, GeneralSettings> update, bool newValue)
+    private CommandResult UpdateGeneral(
+        CommandSender sender,
+        string settingName,
+        Func<GeneralSettings, bool> read,
+        Func<GeneralSettings, bool, GeneralSettings> write,
+        bool newValue)
     {
         var before = _store.General;
         if (read(before) == newValue)
@@ -160,9 +203,40 @@ public sealed class CommandExecutor
             return Ok([$"{settingName} is already {OnOff(newValue)}."]);
         }
 
-        _store.General = update(before);
+        _store.General = write(before, newValue);
+        _undo[sender.PlatformId] = UndoEntry.ForGeneral($"{settingName} = {OnOff(newValue)}", settingName, write, !newValue);
         var change = new SettingChange(GeneralSection, settingName, OnOff(!newValue), OnOff(newValue));
         return new CommandResult([$"{settingName} = {OnOff(newValue)}."], [change], denied: false);
+    }
+
+    // One step back, per player: their own most recent change (not other players').
+    private CommandResult Undo(CommandSender sender)
+    {
+        if (!_undo.TryGetValue(sender.PlatformId, out var entry))
+        {
+            return Ok(["Nothing to undo."]);
+        }
+
+        _undo.Remove(sender.PlatformId);
+        var changes = new List<SettingChange>();
+        if (entry.GeneralSetting is { } setting)
+        {
+            var current = _store.General;
+            _store.General = entry.WriteGeneral!(current, entry.GeneralValue);
+            changes.Add(new SettingChange(GeneralSection, setting, OnOff(!entry.GeneralValue), OnOff(entry.GeneralValue)));
+        }
+
+        foreach (var item in entry.Items)
+        {
+            var current = _store.GetItem(item.Key);
+            if (!current.Equals(item.Value))
+            {
+                _store.SetItem(item.Key, item.Value);
+                changes.Add(new SettingChange(item.Key, "Undo", current.ToString(), item.Value.ToString()));
+            }
+        }
+
+        return new CommandResult([$"Undone: {entry.Description}."], changes, denied: false);
     }
 
     private bool TryResolve(string target, out IReadOnlyList<CatalogItem> items, out string error)
@@ -186,9 +260,47 @@ public sealed class CommandExecutor
         return true;
     }
 
+    private static bool IsFixedGroup(string target) =>
+        string.Equals(target, ItemCatalog.AllGroup, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(target, ItemCatalog.LightsGroup, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(target, ItemCatalog.StationsGroup, StringComparison.OrdinalIgnoreCase);
+
+    private static string NameList(List<string> names)
+    {
+        var distinct = names.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var shown = string.Join(", ", distinct.Take(MaxNamesInReply));
+        return distinct.Count > MaxNamesInReply ? $"{shown}, +{distinct.Count - MaxNamesInReply} more" : shown;
+    }
+
     private static CommandResult Ok(IReadOnlyList<string> reply) => new(reply, [], denied: false);
 
     private static string OnOff(bool value) => value ? "on" : "off";
 
     private static string Number(int value) => value.ToString(CultureInfo.InvariantCulture);
+
+    private sealed class UndoEntry
+    {
+        private UndoEntry(string description, IReadOnlyList<KeyValuePair<string, ItemSettings>> items)
+        {
+            Description = description;
+            Items = items;
+        }
+
+        public string Description { get; }
+
+        public IReadOnlyList<KeyValuePair<string, ItemSettings>> Items { get; }
+
+        public string? GeneralSetting { get; private set; }
+
+        public Func<GeneralSettings, bool, GeneralSettings>? WriteGeneral { get; private set; }
+
+        public bool GeneralValue { get; private set; }
+
+        public static UndoEntry ForItems(string description, IReadOnlyList<KeyValuePair<string, ItemSettings>> before) =>
+            new(description, before);
+
+        // Only the one setting is restored, so other players' later changes to other settings survive.
+        public static UndoEntry ForGeneral(string description, string setting, Func<GeneralSettings, bool, GeneralSettings> write, bool before) =>
+            new(description, []) { GeneralSetting = setting, WriteGeneral = write, GeneralValue = before };
+    }
 }

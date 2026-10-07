@@ -41,6 +41,10 @@ mod (phase 2) adds an in-game settings tab and client-only features.
 | R-20 | **Testing priority: server-only with vanilla clients first**; console players test via signs with a plain-language guide | — | — | APPROVED | docs/tester-guide.md | in-game checklist P1 |
 | R-21 | Commands refer to items by their **in-game name** (case/space/punctuation-insensitive; shared names change all matching items; internal names still work; "did you mean" suggestions) | Yes | 1 | IMPL | — | `ItemCatalogTests`, `CommandParserTests`, C-15 |
 | R-22 | Readable replies: one combined on-screen message; sign commands leave a short answer on the sign; replies logged on the server | Yes | 1 | IMPL | — | `SignReplyTests`, C-05 |
+| R-23 | Presets: `preset eternal|night|vanilla [item]` (eternal = always on; night = 18:00–06:00, no fuel; vanilla = game behaviour). Default target lights (vanilla: all). Smoke untouched | Yes | 0.2.0 | IMPL (design by Claude, owner to review) | — | `PresetsTests`, `CommandExecutorTests`, C-16 |
+| R-24 | Word groups (`torches`, `braziers`, `fires`, …: every item whose in-game name contains the word, plural or singular, ≥ 3 letters) and schedule words `night` / `day`; replies list changed items when a word selected several | Yes | 0.2.0 | IMPL (design by Claude, owner to review) | — | `ItemCatalogTests`, `CommandParserTests`, C-18 |
+| R-25 | New fires are filled and sign commands answered within ~1 s (server reacts to incoming object data instead of waiting for the 30 s sweep / 5 s pass) | Yes | 0.2.0 | IMPL | §4.12 | A-08 |
+| R-26 | `!fires undo`: reverts the player's own last change (one step, per player, lost on restart); a general-setting undo restores only that setting | Yes | 0.2.0 | IMPL (design by Claude, owner to review) | — | `CommandExecutorTests`, C-17 |
 | R-16 | Uninstall leaves no fire dark: scheduled-off lights are switched back on before the final save on shutdown; fuel is left as is | Yes (normal shutdown only) | 1 | IMPL | §4.11 | `FuelControllerTests`, S-06 |
 | R-14 | Publishing quality: README that accurately describes features, sample config file, list of Valheim versions tested | — | 1 | IMPL | README.md, docs/sample-config.cfg | — |
 
@@ -320,7 +324,30 @@ never call; adds smoke toggle and rain/roof overrides for its own user.
 | Q-29 | Phase-2 client mod library? | "Most lightweight option that gives (almost) everything for free" → no new dependency: private RPC channel reusing the command system + ConfigurationManager as the (optional) menu (§4.16). |
 | Q-28 | Console (Xbox/PlayStation) testing depends on outside testers; until then those checks stay open. | Noted (owner has no console). |
 
-## 7. Decision log
+## 7. Backlog — outstanding ideas and work
+
+Everything not yet done, in rough priority order. Move items into §2 when they are approved and started.
+
+| ID | Item | Type | Status |
+|----|------|------|--------|
+| B-01 | Live test on a hosted server with friends: crossplay, console players, chat commands with 2+ players, `HideCommands`, real world with many fires, other mods | Testing | Started 2026-10-07: 0.1.0 runs on the owner's shared hosted server (status OK, 0 errors). Chat/`HideCommands` pending a second player online; no console players on that server |
+| B-02 | In-game test of server ownership mode (checklist §7) | Testing | Open |
+| B-03 | In-game test of burn rate (fastest with a smelter: spawn ore + coal) | Testing | Open |
+| B-04 | In-game test of rain / `IgnoreRain` (needs rainy weather; only the Resin Candle reacts) | Testing | Open |
+| B-05 | In-game test of the optional PC client mod (checklist §8) | Testing | Open |
+| B-06 | In-game test of 0.2.0: presets, word groups, undo, instant pickup (C-16–C-18, A-08) | Testing | Done except `undo` (C-17), published untested in-game at owner's request |
+| B-07 | Periodic performance line in the log (objects tracked, time per pass) to judge big worlds | Feature | Proposed |
+| B-08 | Per-base / per-fire control (e.g. a sign next to a fire controls only that fire or fires within a radius) | Feature | Proposed — needs design |
+| B-09 | Thunderstore page polish: screenshots or a short clip, a nicer icon, GitHub link (`website_url`) once the repo is public | Release | Proposed |
+| B-10 | Item names in other languages (today players type the server's English names) | Feature | Idea |
+| B-11 | Multi-level or persistent undo | Feature | Idea (only if one step proves too little) |
+| B-12 | Recruit console testers (Xbox/PlayStation) for checklist items marked *crossplay* | Testing | Open |
+| B-13 | "More TBD" from the original request (R-08) | — | Waiting for owner |
+
+Known caveat (dev only): config values saved by a build that classified an item differently keep the old value
+(BepInEx keeps existing entries); released builds don't change classifications without a changelog note.
+
+## 8. Decision log
 
 | Date | Decision | By |
 |------|----------|----|
@@ -343,6 +370,10 @@ never call; adds smoke toggle and rain/roof overrides for its own user.
 | 2026-10-07 | Build server ownership mode, opt-in, default off | Owner |
 | 2026-10-07 | Crossplay works with BepInEx (confirmed by owner) | Owner |
 | 2026-10-07 | In-game (local server, vanilla client): always-on, schedule (incl. midnight), fuel kept while off, clock vs. sun, sign commands, status, in-game names, settings saved — passed | Owner |
+| 2026-10-07 | Publish 0.2.0 (local test passed for presets, word groups, instant signs; undo not yet tested in-game) | Owner |
+| 2026-10-07 | Build 5–8 for 0.2.0: presets, word groups + night/day, instant pickup, undo; keep all outstanding ideas in RTM §7 | Owner |
+| 2026-10-07 | Design choices for 0.2.0 made by Claude at the owner's request (preset names/contents, word-group rule, undo = one step per player): see R-23–R-26 | Claude (owner to review) |
+| 2026-10-07 | **0.1.0 published** on Thunderstore: https://thunderstore.io/c/valheim/p/GrundleLord/Inferno/ (release build smoke-tested on the local server first: clean start, diagnostics written, 0 errors) | Owner |
 | 2026-10-07 | Robust error logging; publish 0.1.0 beta on Thunderstore as GrundleLord-Inferno; license MIT; placeholder icon; no website link yet | Owner |
 | 2026-10-07 | Replies: combined message + answer on sign; commands use in-game item names | Owner |
 | 2026-10-07 | Frigid Kiln (`piece_FrostKiln`, ice → Liquid Frost) is a production station: vanilla by default, like the charcoal kiln. Rule: a smelter-type piece is a light source only if it has no ore slots **and** produces nothing (hot tub) | Owner |

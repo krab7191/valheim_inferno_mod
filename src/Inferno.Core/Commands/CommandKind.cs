@@ -30,6 +30,12 @@ public enum CommandKind
     /// <summary><c>!fires reset &lt;target&gt;</c></summary>
     Reset,
 
+    /// <summary><c>!fires preset &lt;name&gt; [target]</c></summary>
+    Preset,
+
+    /// <summary><c>!fires undo</c> — revert your own last change.</summary>
+    Undo,
+
     /// <summary><c>!fires adminonly on|off</c></summary>
     AdminOnly,
 

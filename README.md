@@ -35,7 +35,8 @@ Items without fuel (e.g. the charcoal kiln) and fires with infinite fuel are not
 ## Installation (server)
 
 **With a mod manager** (r2modman, Thunderstore Mod Manager, or your host's Thunderstore mod installer): install
-**GrundleLord-Inferno**. BepInExPack Valheim is installed with it.
+**[GrundleLord-Inferno](https://thunderstore.io/c/valheim/p/GrundleLord/Inferno/)**. BepInExPack Valheim is installed
+with it.
 
 **By hand:**
 1. Install [BepInExPack Valheim](https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/) on the server
@@ -67,11 +68,13 @@ server. Without Inferno it just lists world keys, so it is harmless.
 | `status` | `!fires status` (is Inferno running? versions, counts, in-game time) |
 | `list [all\|lights\|stations]` | `!fires list lights` |
 | `show <item>` | `!fires show hot tub` |
+| `preset eternal\|night\|vanilla [item]` | `!fires preset night` (all lights: lit at night, no fuel) |
+| `undo` | `!fires undo` (reverts your own last change) |
 | `alwayson <item> on\|off` | `!fires alwayson lights off` |
 | `smoke <item> on\|off` | `!fires smoke lights off` (client mod players only) |
 | `burnrate <item> <-10..10>` | `!fires burnrate all -5` |
 | `schedule <item> <on HH:MM> <off HH:MM>` | `!fires schedule lights 18:00 06:00` |
-| `schedule <item> off` | `!fires schedule lights off` |
+| `schedule <item> night\|day\|off` | `!fires schedule torches night` |
 | `reset <item>` | `!fires reset all` |
 | `adminonly on\|off` | `!fires adminonly on` |
 | `hidecommands on\|off` | `!fires hidecommands off` |
@@ -79,20 +82,28 @@ server. Without Inferno it just lists world keys, so it is harmless.
 | `serverownership on\|off` | `!fires serverownership on` |
 
 `<item>` is the name **as shown in game**, e.g. `hot tub`, `standing wood torch`, `campfire` (case, spaces and
-punctuation don't matter; a name shared by several items changes all of them), or a group: `all`, `lights`,
-`stations`. Internal names like `piece_bathtub` work too. Typos get "did you mean" suggestions.
+punctuation don't matter; a name shared by several items changes all of them); a **word** that selects every item
+with it in its name, e.g. `torches`, `braziers`, `fires`, `lanterns`; or a group: `all`, `lights`, `stations`.
+Internal names like `piece_bathtub` work too. Typos get "did you mean" suggestions. When a word selects several
+items, the reply lists them.
+
+**Presets** set everything in one go: `eternal` = always on (the default), `night` = lit 18:00–06:00 and never
+uses fuel, `vanilla` = plain game behaviour. They apply to all lights unless you name something
+(`!fires preset night torches`); `vanilla` without a name applies to everything.
 
 Replies appear top left for a few seconds and stay in the game's message log (**Compendium → Logs**). A command
 written on a sign is replaced by a short answer, so the result stays readable until you write the next command.
 
-**Example: torches that light at dusk and never need fuel.**
-`always on` overrides the schedule, so switch it off and set the burn rate to −10:
+**Example: torches that light at dusk and never need fuel.** One command: `!fires preset night torches`.
+That's the same as doing it by hand (always on overrides the schedule, so it's switched off):
 
 ```
-!fires alwayson lights off
-!fires burnrate lights -10
-!fires schedule lights 18:00 06:00
+!fires alwayson torches off
+!fires burnrate torches -10
+!fires schedule torches night
 ```
+
+Changed your mind? `!fires undo`.
 
 ## Configuration
 

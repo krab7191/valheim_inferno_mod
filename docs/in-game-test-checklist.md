@@ -64,6 +64,7 @@ Tip: a small test world makes it easier: place one of each torch/fire/hearth/hot
 | A-02 | Fuel never runs out | Watch a campfire over 2+ in-game days | Fuel stays full | R-03 |
 | A-03 | Hot tub stays lit | Build a hot tub with no wood | Lit and full within ~5 s | R-02a |
 | A-04 | Not dark on arrival | Lit hearth at a base, travel far away for 1+ in-game day, come back (`listkeys fires status` while away: "N with nobody nearby" > 0 confirms you're far enough) | Hearth is lit and full the moment the area loads | R-03 |
+| A-08 | Instant | Build a torch; write a command on a sign | Torch full within ~1 s; sign answers within ~1 s | R-25 |
 | A-06 | Unattended burn follows schedule | Torch with always on off, burn rate 0, schedule 18:00–06:00; note fuel; leave the area for a full in-game day; return | Fuel dropped by about 12 in-game hours of burning, not 24 | §4.12 |
 | A-07 | Fuel adds are never lost | Torch with burn rate −5; add wood repeatedly | Every added wood shows up in the fuel count | §4.12 |
 | A-05 | Stations are vanilla | Smelter with ore and coal | Burns coal as in vanilla | R-02a |
@@ -104,6 +105,9 @@ Tip: a small test world makes it easier: place one of each torch/fire/hearth/hot
 | C-03 | Chat shown | `!fires hidecommands off`, type a command | Other player sees it; command runs once (not once per player) | R-11a |
 | C-04 | Chat alone | Alone on server, type `!fires help` | Nothing happens (expected limit; documented) | R-11 |
 | C-05 | Sign | Alone, write `!fires alwayson lights off` on a sign | Reply on screen (one combined message, also in Compendium → Logs); sign shows a short answer; log shows command, author and reply | R-11 |
+| C-16 | Presets | `!fires preset night torches`; later `!fires preset eternal` | Torches off until 18:00 then lit, fuel unchanged; eternal brings them back to always on | R-23 |
+| C-17 | Undo | `!fires burnrate hot tub 5`, then `!fires undo` | Reply "Undone: …"; `show hot tub` back to burnrate 0; second undo says "Nothing to undo." | R-26 |
+| C-18 | Word groups | `!fires show torches`, `!fires alwayson braziers off` | All torches listed; reply lists the braziers that changed | R-24 |
 | C-15 | In-game names | `!fires show hot tub`, `!fires burnrate standing wood torch -5`, `!fires show torch` | First two work (torch: both items named "Standing Wood Torch" change); third suggests names | R-21 |
 | C-06 | F5 console | Client with `-console`: `listkeys fires list` | Reply in F5 console | R-11 |
 | C-07 | F5 on vanilla command | `listkeys` alone | Vanilla behaviour ("You are not admin" for non-admins) | R-11 |
@@ -164,4 +168,7 @@ Install Inferno + ConfigurationManager on a PC client; server runs Inferno.
 
 | Date | Valheim | Inferno | Tester | Server host | Checks passed | Notes |
 |------|---------|---------|--------|-------------|---------------|-------|
+| 2026-10-07 | 1.0.17 | 0.2.0 (release build) | Owner (PC, vanilla client) | Local dedicated server | A-08 (new sign < 1 s), C-16, C-18, C-12 (0 errors) | C-17 undo not run. |
+| 2026-10-07 | 1.0.17 | 0.1.0 (Thunderstore) | Owner (PC, vanilla client) | Hosted shared server, 3 PC players (others offline), no crossplay | G-01, C-05, C-06, C-12 (25 fuel objects, 11 unattended, 6 signs, 0 errors) | Sign answers slow in 0.1.0 (new signs found by the 30 s sweep, up to ~35 s): fixed in 0.2.0 (R-25). Chat tests pending a second player. |
+| 2026-10-07 | 1.0.17 | 0.1.0 (release build) | Owner (PC, vanilla client) | Local dedicated server (Windows), no crossplay | G-01, G-07, C-12 (status incl. error count 0), startup diagnostics | Smoke test of the exact Thunderstore build before upload. |
 | 2026-10-07 | 1.0.17 | 0.1.0-dev | Owner (PC, vanilla client) | Local dedicated server (Windows), no crossplay | G-01, G-02, G-03, G-05, G-06, G-07, A-01 (torch, campfire), A-03 (after config fix), A-04 (distance not measured), A-05, S-01 (clock matches sun: 17:52 at dusk), S-02 (incl. window across midnight), S-03, C-05, C-06, C-08, C-09, C-10, C-12, C-13, C-15, F-01, F-02, reset all | Found: hot tub misclassified as station → fixed; Frigid Kiln → station (owner decision); display names "Fire" → build-menu names; top-left replies too short → one combined message + answer on sign. New pieces are picked up by the 30 s sweep (a few seconds' delay observed). |
