@@ -78,8 +78,15 @@ public sealed class CommandExecutor
         {
             CommandKind.AlwaysOn => UpdateItems(sender, command.Target!, "AlwaysOn", OnOff(command.Flag), (_, s) => s.WithAlwaysOn(command.Flag)),
             CommandKind.Smoke => UpdateItems(sender, command.Target!, "Smoke", OnOff(command.Flag), (_, s) => s.WithSmoke(command.Flag)),
-            CommandKind.BurnRate => UpdateItems(sender, command.Target!, "BurnRate", Number(command.Number), (_, s) => s.WithBurnRate(command.Number)),
-            CommandKind.Schedule => UpdateItems(sender, command.Target!, "Schedule", command.Schedule.ToString(), (i, s) => i.CanSchedule ? s.WithSchedule(command.Schedule) : null),
+            // Always on would hide a new burn rate or schedule window, so setting one switches always on off. The
+            // stored values survive the other way round: turning always on back on keeps them for later.
+            CommandKind.BurnRate => UpdateItems(sender, command.Target!, "BurnRate", Number(command.Number), (_, s) => s.WithBurnRate(command.Number).WithAlwaysOn(false)),
+            CommandKind.Schedule => UpdateItems(
+                sender,
+                command.Target!,
+                "Schedule",
+                command.Schedule.ToString(),
+                (i, s) => !i.CanSchedule ? null : command.Schedule.IsAlwaysOn ? s.WithSchedule(command.Schedule) : s.WithSchedule(command.Schedule).WithAlwaysOn(false)),
             CommandKind.Reset => UpdateItems(sender, command.Target!, "Settings", "defaults", (i, _) => ItemSettings.DefaultFor(i.Kind)),
             CommandKind.Preset => ApplyPreset(sender, command),
             CommandKind.Undo => Undo(sender),
@@ -147,6 +154,7 @@ public sealed class CommandExecutor
         var undo = new List<KeyValuePair<string, ItemSettings>>();
         var changedNames = new List<string>();
         var skipped = 0;
+        var alwaysOnSwitchedOff = 0;
         foreach (var item in items)
         {
             var before = _store.GetItem(item.PrefabName);
@@ -159,6 +167,11 @@ public sealed class CommandExecutor
 
             if (!after.Equals(before))
             {
+                if (before.AlwaysOn && !after.AlwaysOn && settingName != "AlwaysOn" && settingName != "Preset" && settingName != "Settings")
+                {
+                    alwaysOnSwitchedOff++;
+                }
+
                 _store.SetItem(item.PrefabName, after);
                 changes.Add(new SettingChange(item.PrefabName, settingName, before.ToString(), after.ToString()));
                 undo.Add(new KeyValuePair<string, ItemSettings>(item.PrefabName, before));
@@ -175,6 +188,11 @@ public sealed class CommandExecutor
         if (changedNames.Count > 1 && !IsFixedGroup(target))
         {
             reply.Add("Changed: " + NameList(changedNames));
+        }
+
+        if (alwaysOnSwitchedOff > 0)
+        {
+            reply.Add($"AlwaysOn turned off for {alwaysOnSwitchedOff} item(s) so this takes effect.");
         }
 
         if (skipped > 0)

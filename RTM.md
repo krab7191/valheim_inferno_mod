@@ -45,6 +45,7 @@ mod (phase 2) adds an in-game settings tab and client-only features.
 | R-24 | Word groups (`torches`, `braziers`, `fires`, …: every item whose in-game name contains the word, plural or singular, ≥ 3 letters) and schedule words `night` / `day`; replies list changed items when a word selected several | Yes | 0.2.0 | IMPL (design by Claude, owner to review) | — | `ItemCatalogTests`, `CommandParserTests`, C-18 |
 | R-25 | New fires are filled and sign commands answered within ~1 s (server reacts to incoming object data instead of waiting for the 30 s sweep / 5 s pass) | Yes | 0.2.0 | IMPL | §4.12 | A-08 |
 | R-26 | `!fires undo`: reverts the player's own last change (one step, per player, lost on restart); a general-setting undo restores only that setting | Yes | 0.2.0 | IMPL (design by Claude, owner to review) | — | `CommandExecutorTests`, C-17 |
+| R-27 | Setting a burn rate or schedule window switches AlwaysOn off (reply says so); turning AlwaysOn on keeps burn rate and schedule stored; `schedule … off` leaves AlwaysOn alone; menu sends AlwaysOn last | Yes | 0.2.1 | IMPL | — | `CommandExecutorTests`, `SyncTests` |
 | R-16 | Uninstall leaves no fire dark: scheduled-off lights are switched back on before the final save on shutdown; fuel is left as is | Yes (normal shutdown only) | 1 | IMPL | §4.11 | `FuelControllerTests`, S-06 |
 | R-14 | Publishing quality: README that accurately describes features, sample config file, list of Valheim versions tested | — | 1 | IMPL | README.md, docs/sample-config.cfg | — |
 
@@ -335,7 +336,7 @@ Everything not yet done, in rough priority order. Move items into §2 when they 
 | B-03 | In-game test of burn rate (fastest with a smelter: spawn ore + coal) | Testing | Open |
 | B-04 | In-game test of rain / `IgnoreRain` (needs rainy weather; only the Resin Candle reacts) | Testing | Open |
 | B-05 | In-game test of the optional PC client mod (checklist §8) | Testing | Open |
-| B-06 | In-game test of 0.2.0: presets, word groups, undo, instant pickup (C-16–C-18, A-08) | Testing | Done except `undo` (C-17), published untested in-game at owner's request |
+| B-06 | In-game test of 0.2.0: presets, word groups, undo, instant pickup (C-16–C-18, A-08) | Testing | Done (undo verified on 0.2.1) |
 | B-07 | Periodic performance line in the log (objects tracked, time per pass) to judge big worlds | Feature | Proposed |
 | B-08 | Per-base / per-fire control (e.g. a sign next to a fire controls only that fire or fires within a radius) | Feature | Proposed — needs design |
 | B-09 | Thunderstore page polish: screenshots or a short clip, a nicer icon, GitHub link (`website_url`) once the repo is public | Release | Proposed |
@@ -343,6 +344,7 @@ Everything not yet done, in rough priority order. Move items into §2 when they 
 | B-11 | Multi-level or persistent undo | Feature | Idea (only if one step proves too little) |
 | B-12 | Recruit console testers (Xbox/PlayStation) for checklist items marked *crossplay* | Testing | Open |
 | B-13 | "More TBD" from the original request (R-08) | — | Waiting for owner |
+| B-14 | Note in replies when burn rate or schedule is changed on items with AlwaysOn on | UX | Superseded by R-27 |
 
 Known caveat (dev only): config values saved by a build that classified an item differently keep the old value
 (BepInEx keeps existing entries); released builds don't change classifications without a changelog note.
@@ -370,6 +372,7 @@ Known caveat (dev only): config values saved by a build that classified an item 
 | 2026-10-07 | Build server ownership mode, opt-in, default off | Owner |
 | 2026-10-07 | Crossplay works with BepInEx (confirmed by owner) | Owner |
 | 2026-10-07 | In-game (local server, vanilla client): always-on, schedule (incl. midnight), fuel kept while off, clock vs. sun, sign commands, status, in-game names, settings saved — passed | Owner |
+| 2026-10-07 | Burn rate / schedule changes switch AlwaysOn off; AlwaysOn keeps the other settings stored (R-27) | Owner |
 | 2026-10-07 | Publish 0.2.0 (local test passed for presets, word groups, instant signs; undo not yet tested in-game) | Owner |
 | 2026-10-07 | Build 5–8 for 0.2.0: presets, word groups + night/day, instant pickup, undo; keep all outstanding ideas in RTM §7 | Owner |
 | 2026-10-07 | Design choices for 0.2.0 made by Claude at the owner's request (preset names/contents, word-group rule, undo = one step per player): see R-23–R-26 | Claude (owner to review) |

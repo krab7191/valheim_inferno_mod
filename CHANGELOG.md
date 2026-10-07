@@ -5,6 +5,17 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-07
+
+### Changed
+- Setting a burn rate or a schedule window on an always-on item now switches always on off, so the setting takes
+  effect (the reply says so). Turning always on back on keeps the stored burn rate and schedule for later.
+  `schedule … off` leaves always on alone.
+
+### Fixed
+- Commands written with formatting, e.g. `<color=green>!fires status` on a sign, were ignored. Formatting tags are
+  now ignored when reading commands, and the answer on the sign keeps the player's formatting.
+
 ## [0.2.0] - 2026-10-07
 
 Tested on a local dedicated server (Valheim 1.0.17): presets, word groups, instant sign answers. `undo` is

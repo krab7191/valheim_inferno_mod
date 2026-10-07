@@ -52,7 +52,9 @@ public static class CommandParser
         command = null!;
         error = string.Empty;
 
-        var tokens = (text ?? string.Empty).Split(Whitespace, StringSplitOptions.RemoveEmptyEntries);
+        // Formatting such as "<color=green>!fires status" (signs, chat) is not part of the command.
+        text = RichText.Strip(text);
+        var tokens = text.Split(Whitespace, StringSplitOptions.RemoveEmptyEntries);
         string prefix;
         if (tokens.Length >= 1 && string.Equals(tokens[0], Prefix, StringComparison.OrdinalIgnoreCase))
         {
@@ -70,7 +72,7 @@ public static class CommandParser
             return ParseOutcome.NotACommand;
         }
 
-        if (text!.Length > MaxLength)
+        if (text.Length > MaxLength)
         {
             error = $"Command too long (max {MaxLength} characters).";
             return ParseOutcome.Invalid;

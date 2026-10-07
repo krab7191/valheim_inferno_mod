@@ -108,6 +108,7 @@ Tip: a small test world makes it easier: place one of each torch/fire/hearth/hot
 | C-16 | Presets | `!fires preset night torches`; later `!fires preset eternal` | Torches off until 18:00 then lit, fuel unchanged; eternal brings them back to always on | R-23 |
 | C-17 | Undo | `!fires burnrate hot tub 5`, then `!fires undo` | Reply "Undone: …"; `show hot tub` back to burnrate 0; second undo says "Nothing to undo." | R-26 |
 | C-18 | Word groups | `!fires show torches`, `!fires alwayson braziers off` | All torches listed; reply lists the braziers that changed | R-24 |
+| C-19 | Formatted sign | Write `<color=green>!fires status` on a sign | Answers; the answer on the sign is green too | — |
 | C-15 | In-game names | `!fires show hot tub`, `!fires burnrate standing wood torch -5`, `!fires show torch` | First two work (torch: both items named "Standing Wood Torch" change); third suggests names | R-21 |
 | C-06 | F5 console | Client with `-console`: `listkeys fires list` | Reply in F5 console | R-11 |
 | C-07 | F5 on vanilla command | `listkeys` alone | Vanilla behaviour ("You are not admin" for non-admins) | R-11 |
@@ -168,6 +169,7 @@ Install Inferno + ConfigurationManager on a PC client; server runs Inferno.
 
 | Date | Valheim | Inferno | Tester | Server host | Checks passed | Notes |
 |------|---------|---------|--------|-------------|---------------|-------|
+| 2026-10-07 | 1.0.17 | 0.2.1 (release build) | Owner (PC, vanilla client) | Local dedicated server | C-19 (green command → green answer), C-17 (undo; "Nothing to undo" after restart as designed) | |
 | 2026-10-07 | 1.0.17 | 0.2.0 (release build) | Owner (PC, vanilla client) | Local dedicated server | A-08 (new sign < 1 s), C-16, C-18, C-12 (0 errors) | C-17 undo not run. |
 | 2026-10-07 | 1.0.17 | 0.1.0 (Thunderstore) | Owner (PC, vanilla client) | Hosted shared server, 3 PC players (others offline), no crossplay | G-01, C-05, C-06, C-12 (25 fuel objects, 11 unattended, 6 signs, 0 errors) | Sign answers slow in 0.1.0 (new signs found by the 30 s sweep, up to ~35 s): fixed in 0.2.0 (R-25). Chat tests pending a second player. |
 | 2026-10-07 | 1.0.17 | 0.1.0 (release build) | Owner (PC, vanilla client) | Local dedicated server (Windows), no crossplay | G-01, G-07, C-12 (status incl. error count 0), startup diagnostics | Smoke test of the exact Thunderstore build before upload. |

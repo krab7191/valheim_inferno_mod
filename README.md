@@ -105,6 +105,10 @@ That's the same as doing it by hand (always on overrides the schedule, so it's s
 
 Changed your mind? `!fires undo`.
 
+**Always on vs. burn rate and schedule:** while always on is on, burn rate and schedule have no effect. Setting a
+burn rate or a schedule window therefore switches always on off for those items (the reply tells you).
+Turning always on back on keeps your burn rate and schedule stored, so nothing is lost.
+
 ## Configuration
 
 Everything the commands change is stored in `BepInEx/config/GrundleLord.Inferno.cfg`, and edits to that file

@@ -32,12 +32,9 @@ public static class MenuCommands
             throw new ArgumentNullException(nameof(after));
         }
 
+        // Always on last: setting a burn rate or schedule switches always on off, so the player's own always-on
+        // choice in the same edit must be applied after them.
         var commands = new List<string>();
-        if (before.AlwaysOn != after.AlwaysOn)
-        {
-            commands.Add(Command("alwayson", prefabName, OnOff(after.AlwaysOn)));
-        }
-
         if (before.BurnRateLevel != after.BurnRateLevel)
         {
             commands.Add(Command("burnrate", prefabName, after.BurnRateLevel.ToString(CultureInfo.InvariantCulture)));
@@ -53,6 +50,11 @@ public static class MenuCommands
         if (before.Smoke != after.Smoke)
         {
             commands.Add(Command("smoke", prefabName, OnOff(after.Smoke)));
+        }
+
+        if (before.AlwaysOn != after.AlwaysOn)
+        {
+            commands.Add(Command("alwayson", prefabName, OnOff(after.AlwaysOn)));
         }
 
         return commands;

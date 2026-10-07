@@ -119,10 +119,10 @@ public class MenuCommandsTests
 
         Assert.Equal(
             [
-                "!fires alwayson hearth on",
                 "!fires burnrate hearth -4",
                 "!fires schedule hearth 18:00 06:00",
                 "!fires smoke hearth off",
+                "!fires alwayson hearth on",
             ],
             MenuCommands.ForItem("hearth", ItemSettings.Vanilla, after));
     }

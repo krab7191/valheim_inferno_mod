@@ -128,7 +128,9 @@ internal sealed class CommandService(CommandExecutor executor, ConfigSettingsSto
             Players.ShowMessage(peer, reply);
         }
 
-        answer = SignReply.Summarize(reply);
+        // Keep the player's formatting: a green command gets a green answer.
+        var summary = SignReply.Summarize(reply);
+        answer = summary.Length == 0 ? summary : RichText.Leading(text) + summary;
         return true;
     }
 

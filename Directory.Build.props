@@ -16,6 +16,6 @@
     <Product>Inferno</Product>
     <Copyright>Copyright (c) 2026 GrundleLord. MIT License.</Copyright>
     <!-- Single source of truth for the mod version (BepInEx plugin attribute, package manifest). -->
-    <Version>0.2.0</Version>
+    <Version>0.2.1</Version>
   </PropertyGroup>
 </Project>

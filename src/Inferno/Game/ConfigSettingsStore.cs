@@ -278,7 +278,7 @@ internal sealed class ConfigSettingsStore : ISettingsStore, IDisposable
             var entries = new ItemEntries
             {
                 _alwaysOn = store.Bind(section, "AlwaysOn", defaults.AlwaysOn,
-                    $"{item.DisplayName} — {kind}. Keep fuel full at all times. Overrides the schedule."),
+                    $"{item.DisplayName} — {kind}. Keep fuel full at all times. While on, burn rate and schedule are kept but have no effect (setting either by command switches this off)."),
                 _burnRate = store.Bind(section, "BurnRate", defaults.BurnRateLevel,
                     "Fuel burn rate: 0 = vanilla, each step is 10 %. -10 = uses no fuel, 10 = burns twice as fast.",
                     new AcceptableValueRange<int>(BurnRate.Min, BurnRate.Max)),
