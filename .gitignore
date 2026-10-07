@@ -1,0 +1,22 @@
+# Build output
+bin/
+obj/
+artifacts/
+TestResults/
+coverage/
+*.nupkg
+
+# IDE / OS
+.vs/
+.idea/
+*.user
+*.suo
+.DS_Store
+Thumbs.db
+
+# Machine-specific settings
+Directory.Build.user.props
+
+# Never commit game or third-party binaries
+*.dll
+*.pdb

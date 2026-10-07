@@ -1,0 +1,60 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The BepInEx plugin: thin glue between the game and Inferno.Core.
+    Game assemblies are referenced from the local Valheim install ($(ValheimDir), set in Directory.Build.user.props)
+    and are never copied to the output or committed.
+  -->
+  <PropertyGroup>
+    <!-- Valheim runs on Unity Mono with the .NET Framework 4.x API set. -->
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>Inferno</AssemblyName>
+    <RootNamespace>Inferno</RootNamespace>
+    <!-- No XML doc file: the plugin has no public API (and BepInEx.PluginInfoProps generates undocumented members). -->
+    <!-- Feeds the generated MyPluginInfo class, so the plugin version always equals <Version>. -->
+    <BepInExPluginGuid>GrundleLord.Inferno</BepInExPluginGuid>
+    <BepInExPluginName>Inferno</BepInExPluginName>
+    <ValheimManagedDir>$(ValheimDir)/valheim_Data/Managed</ValheimManagedDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Core" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Include="BepInEx.Analyzers" PrivateAssets="all" />
+    <PackageReference Include="BepInEx.PluginInfoProps" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Inferno.Core/Inferno.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="assembly_valheim" HintPath="$(ValheimManagedDir)/assembly_valheim.dll" Private="false" />
+    <Reference Include="assembly_utils" HintPath="$(ValheimManagedDir)/assembly_utils.dll" Private="false" />
+    <Reference Include="assembly_guiutils" HintPath="$(ValheimManagedDir)/assembly_guiutils.dll" Private="false" />
+    <Reference Include="UnityEngine" HintPath="$(ValheimManagedDir)/UnityEngine.dll" Private="false" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(ValheimManagedDir)/UnityEngine.CoreModule.dll" Private="false" />
+  </ItemGroup>
+
+  <Target Name="CheckValheimDir" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="'$(ValheimDir)' == '' Or !Exists('$(ValheimManagedDir)/assembly_valheim.dll')"
+           Text="Valheim not found. Copy Directory.Build.user.props.example to Directory.Build.user.props and set ValheimDir. (Core + tests do not need the game: run 'dotnet test tests/Inferno.Core.Tests'.)" />
+  </Target>
+
+  <!-- Release builds produce artifacts/Inferno-<version>.zip, laid out to unzip straight into the Valheim folder. -->
+  <Target Name="PackagePlugin" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <PropertyGroup>
+      <PackageRoot>$(MSBuildThisFileDirectory)../../artifacts/package/</PackageRoot>
+      <PackageZip>$(MSBuildThisFileDirectory)../../artifacts/Inferno-$(Version).zip</PackageZip>
+    </PropertyGroup>
+    <RemoveDir Directories="$(PackageRoot)" />
+    <Copy SourceFiles="$(TargetDir)Inferno.dll;$(TargetDir)Inferno.Core.dll" DestinationFolder="$(PackageRoot)BepInEx/plugins/Inferno" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)../../README.md;$(MSBuildThisFileDirectory)../../CHANGELOG.md;$(MSBuildThisFileDirectory)../../LICENSE" DestinationFolder="$(PackageRoot)BepInEx/plugins/Inferno" />
+    <Delete Files="$(PackageZip)" />
+    <ZipDirectory SourceDirectory="$(PackageRoot)" DestinationFile="$(PackageZip)" />
+    <Message Importance="high" Text="Inferno package: $(PackageZip)" />
+  </Target>
+
+  <Target Name="DeployPlugin" AfterTargets="Build" Condition="'$(InfernoDeployDir)' != ''">
+    <Copy SourceFiles="$(TargetDir)Inferno.dll;$(TargetDir)Inferno.Core.dll" DestinationFolder="$(InfernoDeployDir)" />
+    <Message Importance="high" Text="Inferno deployed to $(InfernoDeployDir)" />
+  </Target>
+</Project>

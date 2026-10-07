@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Inferno.Core.Tests</RootNamespace>
+
+    <!-- Coverage gate: the test run fails if Inferno.Core drops below 100 % line or branch coverage. -->
+    <TestingPlatformCommandLineArguments>--coverlet --coverlet-include "[Inferno.Core]*" --coverlet-output-format cobertura --coverlet-threshold 100 --coverlet-threshold-type line,branch --coverlet-threshold-stat Total --results-directory $(MSBuildThisFileDirectory)../../artifacts/TestResults</TestingPlatformCommandLineArguments>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="coverlet.MTP" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Inferno.Core/Inferno.Core.csproj" />
+  </ItemGroup>
+</Project>

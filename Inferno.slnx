@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Inferno.Core/Inferno.Core.csproj" />
+    <Project Path="src/Inferno/Inferno.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Inferno.Core.Tests/Inferno.Core.Tests.csproj" />
+  </Folder>
+</Solution>

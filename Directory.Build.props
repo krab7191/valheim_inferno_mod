@@ -1,0 +1,21 @@
+<Project>
+  <!-- Settings shared by every project. Machine-specific paths go in Directory.Build.user.props (not committed). -->
+  <Import Project="Directory.Build.user.props" Condition="Exists('$(MSBuildThisFileDirectory)Directory.Build.user.props')" />
+
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <Deterministic>true</Deterministic>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+
+    <Authors>GrundleLord</Authors>
+    <Product>Inferno</Product>
+    <Copyright>Copyright (c) 2026 GrundleLord. All rights reserved.</Copyright>
+    <!-- Single source of truth for the mod version (BepInEx plugin attribute, package manifest). -->
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+</Project>

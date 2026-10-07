@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    All of Inferno's rules live here. This project must never reference Unity, BepInEx or the game:
+    that is what lets it be unit-tested to 100 % coverage on any machine.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>Inferno.Core</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Inferno.Core.Tests" />
+  </ItemGroup>
+</Project>

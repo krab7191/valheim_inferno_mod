@@ -1,0 +1,14 @@
+<Project>
+  <!--
+    Copy to Directory.Build.user.props (ignored by version control) and adjust for your machine.
+    Only needed to build the game plugin (src/Inferno). Core + tests build without the game installed.
+  -->
+  <PropertyGroup>
+    <!-- Valheim install folder (the one containing valheim_Data). -->
+    <!-- Windows: C:\Program Files (x86)\Steam\steamapps\common\Valheim -->
+    <ValheimDir>/mnt/c/Program Files (x86)/Steam/steamapps/common/Valheim</ValheimDir>
+
+    <!-- Optional: copy the built plugin here after every build, e.g. a local test server's plugins folder. -->
+    <!-- <InfernoDeployDir>$(ValheimDir)/BepInEx/plugins/Inferno</InfernoDeployDir> -->
+  </PropertyGroup>
+</Project>

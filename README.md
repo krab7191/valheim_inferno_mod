@@ -1,0 +1,186 @@
+# Inferno
+
+**Server-side control over every fire, torch and fuel-burning station in Valheim. Players install nothing,
+so it works with Xbox / Game Pass crossplay.**
+
+> **Status: pre-release (0.1.0), not yet tested in-game.** Features below are implemented and unit-tested,
+> but a feature is only marked *Available* once it has also been verified on a real server
+> (see [Compatibility](#compatibility)).
+
+## Features
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Server-only install (clients need nothing, crossplay-safe) | Implemented, awaiting in-game test | No version check, no new items: vanilla and Xbox clients join as normal |
+| Per-item settings for every fuel-burning piece | Implemented, awaiting in-game test | Found automatically at startup, including pieces added by other mods |
+| Always on | Implemented, awaiting in-game test | **Default for all light sources** (torches, sconces, fires, hearths, braziers, lanterns, hot tubs, …). Keeps fuel full everywhere, also where nobody is nearby, so bases aren't dark when you arrive. Overrides the schedule |
+| Fuel burn rate | Implemented, awaiting in-game test | −10 to +10, 0 = vanilla, each step 10 %: −10 uses no fuel, +10 burns twice as fast |
+| Daily on/off schedule | Implemented, awaiting in-game test | On and off time on the in-game clock (06:00 = sunrise, 18:00 = sunset), one window per day. Equal times (default 00:00/00:00) = no schedule. Fuel is kept while a light is scheduled off. Only used when *always on* is off |
+| Ignore rain | Implemented, awaiting in-game test | Off by default (lights go out in the rain as in vanilla). The server log lists which lights react to rain. See [Limits](#known-limits) |
+| Correct burning while nobody is nearby | Implemented, awaiting in-game test | Vanilla burns all missed time at once when a player arrives, ignoring schedules. Inferno burns it on the server as time passes, following schedule and burn rate |
+| Server ownership mode (experimental, off by default) | Implemented, awaiting in-game test | The server keeps ownership of fires, so no player's game burns their fuel or puts them out in rain: fuel only changes when the server says so. Exact burn rate and schedule. See [Server ownership mode](#server-ownership-mode-experimental) |
+| Commands in chat, on signs and in the F5 console | Implemented, awaiting in-game test | See [Commands](#commands) |
+| Config file with live reload | Implemented, awaiting in-game test | Edit through your host's web file manager; no restart |
+| `AdminOnly` permission switch | Implemented, awaiting in-game test | Off by default: anyone may change settings. Anyone can turn it on; only admins can turn it off. Inferno never changes the server's admin list |
+| Full audit log | Implemented, awaiting in-game test | Every command, every change (who, old → new) and every config-file edit goes to the BepInEx log |
+| Safe uninstall | Implemented, awaiting in-game test | On a normal server shutdown Inferno switches scheduled-off lights back on before the world is saved; fuel stays as it is |
+| Optional PC client mod: in-game settings menu | Implemented, awaiting in-game test | Same DLL on a PC client + [ConfigurationManager](https://thunderstore.io/c/valheim/p/Azumatt/Official_BepInEx_ConfigurationManager/) (F1). Shows and edits the **server's** settings live; read-only for non-admins while `AdminOnly` is on. See [Client mod](#optional-client-mod-pc) |
+| Per-item smoke toggle | Implemented, awaiting in-game test | Removes smoke for players who have the client mod; everyone else sees vanilla smoke |
+| No rain flicker (client mod) | Implemented, awaiting in-game test | With `IgnoreRain` on, players with the client mod never have their lights put out by rain |
+
+Items that are not light sources (smelters, blast furnaces, ovens, …) keep vanilla behaviour until you change them.
+Items without fuel (e.g. the charcoal kiln) and fires with infinite fuel are not listed.
+
+## Installation (server)
+
+1. Install [BepInExPack Valheim](https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/) on the server
+   (most hosts have a one-click option).
+2. Unzip `Inferno-<version>.zip` into the server's Valheim folder, so that you get
+   `BepInEx/plugins/Inferno/Inferno.dll` and `Inferno.Core.dll`.
+3. Restart the server. The log (`BepInEx/LogOutput.log`) shows `Inferno … loaded` and lists every item it found.
+4. Settings are in `BepInEx/config/GrundleLord.Inferno.cfg` (created on first start). See the
+   [sample config](docs/sample-config.cfg).
+
+Players don't install anything.
+
+## Commands
+
+Three ways to type the same commands:
+
+| Where | How | Works when | Reply |
+|-------|-----|------------|-------|
+| Chat | `!fires <command>` | **At least one other player is online.** Valheim sends chat directly to other players, so a lone player's chat never reaches the server | On screen, top left |
+| Sign | Write `!fires <command>` on any sign | Always, including alone and on Xbox. Signs hold 50 characters, so use groups for long item names | On screen; the sign is cleared |
+| F5 console | `listkeys fires <command>` | Always. Needs the `-console` launch option (Steam: Properties → Launch options). Not available on Xbox | In the console |
+
+The F5 form borrows the vanilla `listkeys` command because Valheim only forwards built-in server commands to the
+server. Without Inferno it just lists world keys, so it is harmless.
+
+| Command | Example |
+|---------|---------|
+| `help` | `!fires help` |
+| `status` | `!fires status` (is Inferno running? versions, counts, in-game time) |
+| `list [all\|lights\|stations]` | `!fires list lights` |
+| `show <item>` | `!fires show hearth` |
+| `alwayson <item> on\|off` | `!fires alwayson lights off` |
+| `smoke <item> on\|off` | `!fires smoke lights off` (client mod players only) |
+| `burnrate <item> <-10..10>` | `!fires burnrate all -5` |
+| `schedule <item> <on HH:MM> <off HH:MM>` | `!fires schedule lights 18:00 06:00` |
+| `schedule <item> off` | `!fires schedule lights off` |
+| `reset <item>` | `!fires reset all` |
+| `adminonly on\|off` | `!fires adminonly on` |
+| `hidecommands on\|off` | `!fires hidecommands off` |
+| `ignorerain on\|off` | `!fires ignorerain on` |
+| `serverownership on\|off` | `!fires serverownership on` |
+
+`<item>` is an item name from `list` (e.g. `piece_groundtorch_wood`) or a group: `all`, `lights`, `stations`.
+
+**Example: torches that light at dusk and never need fuel.**
+`always on` overrides the schedule, so switch it off and set the burn rate to −10:
+
+```
+!fires alwayson lights off
+!fires burnrate lights -10
+!fires schedule lights 18:00 06:00
+```
+
+## Configuration
+
+Everything the commands change is stored in `BepInEx/config/GrundleLord.Inferno.cfg`, and edits to that file
+apply live. See the fully commented [sample config](docs/sample-config.cfg).
+
+| Section | Setting | Default | Meaning |
+|---------|---------|---------|---------|
+| `[General]` | `AdminOnly` | `false` | Only admins may change settings |
+| | `HideCommands` | `true` | Hide `!fires` chat lines from other players |
+| | `IgnoreRain` | `false` | Relight lights put out by rain or wind |
+| | `ServerOwnership` | `false` | Experimental: server keeps ownership of fires |
+| `[<item>]` | `AlwaysOn` | lights `true`, stations `false` | Keep fuel full; overrides the schedule |
+| | `BurnRate` | `0` | −10 … +10, 10 % per step |
+| | `Smoke` | `true` | Smoke on/off (client mod players only) |
+| | `OnTimeHour`, `OnTimeMinute` | `0`, `0` | Hour 0–24, minute 0–60 (lights only) |
+| | `OffTimeHour`, `OffTimeMinute` | `0`, `0` | Same; on = off means no schedule |
+
+## Optional client mod (PC)
+
+Players don't need anything. PC players **may** install the same `Inferno` files (plus
+[ConfigurationManager](https://thunderstore.io/c/valheim/p/Azumatt/Official_BepInEx_ConfigurationManager/), which
+many modded setups already have) to get:
+
+- **A settings menu:** press **F1**, open *Inferno*. While connected to a server running Inferno, the menu shows the
+  server's settings and changes apply to the whole server immediately (they are sent as normal commands, so the
+  same permissions and logging apply). With `AdminOnly` on, non-admins see the settings read-only.
+- **Smoke toggle:** items set to `Smoke = off` make no smoke for this player.
+- **No rain flicker:** with `IgnoreRain` on, this player's game never puts lights out in the rain.
+
+On a server without Inferno, or in single-player without a world loaded, the client mod does nothing. Version
+mismatches between client and server are detected; the menu is then disabled with a message.
+
+## Server ownership mode (experimental)
+
+Normally the player nearest a fire "owns" it, and their game burns its fuel and switches it off in rain; Inferno
+corrects from the server. With `ServerOwnership` on, the server keeps ownership of every eligible fire instead:
+
+- No player's game burns the fuel, so it changes **only** when Inferno says so: always-on fires never drop, burn
+  rate and schedule are exact, and there are no update collisions.
+- Rain and wind can't switch these fires off.
+- Adding fuel and switching on/off are handled by the server, so nothing is lost.
+- Deconstructing, repairing or damaging a fire briefly hands it to that player (30 s) so the game handles it
+  normally. The action takes about a second longer than usual; if it doesn't happen, try again.
+- Side effects: no sound or flash when adding fuel or switching these fires.
+- Excluded (keep normal behaviour): fires that melt Deep North snow or spread fire, and pieces with other
+  player-run parts (smelters, containers, …). The server log lists them.
+- Turning it off gives every fire back immediately; Inferno also gives them back on shutdown.
+
+## Known limits
+
+These come from how Valheim works and apply to any server-only mod:
+
+- **Rain, wind, roofs and water** are checked on players' PCs. Some lights (e.g. candles, lanterns) switch
+  themselves off in the rain; with `IgnoreRain` on, Inferno switches them back on within a few seconds, but they
+  may flicker during storms. The server can't tell rain from a player's hand, so `IgnoreRain` also relights
+  lights players switched off. Lights blocked by a roof or under water stay out.
+- **Burn rate is close, not exact, while a player is nearby.** That player's game burns the fuel; Inferno corrects
+  the amount every 5 seconds. While nobody is nearby, the server burns fuel itself, exactly, following the burn
+  rate and the schedule.
+- **Chat commands need a second player online** (see [Commands](#commands)); signs and the F5 console always work.
+  Console players whose platform privacy settings block text chat can always use signs.
+- **Smoke** can only be removed for players who have the client mod.
+- **Uninstall:** stop the server normally (not a forced kill), then remove the files. Fuel levels stay as they are
+  and burn normally afterwards.
+
+## Compatibility
+
+| Valheim version | Inferno version | Tested in-game |
+|-----------------|-----------------|----------------|
+| 1.0.17 | 0.1.0 | Not yet |
+
+Inferno targets the **latest stable Valheim release** only. New game patches are tested as they ship; older game
+versions are not supported.
+
+## Building from source
+
+Requirements: [.NET SDK 10](https://dotnet.microsoft.com/download). The game is only needed to build the plugin,
+not to run the tests.
+
+```sh
+# Run all core tests (enforces 100 % line and branch coverage)
+dotnet test --project tests/Inferno.Core.Tests
+
+# Build the plugin (needs Valheim installed; see Directory.Build.user.props.example)
+cp Directory.Build.user.props.example Directory.Build.user.props   # then edit ValheimDir
+dotnet build
+
+# Release package: artifacts/Inferno-<version>.zip
+dotnet build -c Release
+```
+
+Testing: [in-game checklist](docs/in-game-test-checklist.md) (server-only first) and a plain-language
+[tester guide](docs/tester-guide.md) for players without mods, including console players.
+
+Contributor and AI-agent guidelines are in [AGENTS.md](AGENTS.md); requirements and design decisions are in
+[RTM.md](RTM.md).
+
+## License
+
+Copyright © 2026 GrundleLord. All rights reserved. See [LICENSE](LICENSE).
