@@ -106,29 +106,33 @@ public static class CommandParser
             case "LIST" when t.Length == 2:
                 return new ParsedCommand(CommandKind.List, ItemCatalog.AllGroup);
 
-            case "LIST" when t.Length == 3:
-                return new ParsedCommand(CommandKind.List, t[2]);
+            // Item names may contain spaces ("hot tub"): the item is every word between the command word and the
+            // command's own trailing arguments.
+            case "LIST" when t.Length >= 3:
+                return new ParsedCommand(CommandKind.List, Item(t, 0));
 
-            case "SHOW" when t.Length == 3:
-                return new ParsedCommand(CommandKind.Show, t[2]);
+            case "SHOW" when t.Length >= 3:
+                return new ParsedCommand(CommandKind.Show, Item(t, 0));
 
-            case "RESET" when t.Length == 3:
-                return new ParsedCommand(CommandKind.Reset, t[2]);
+            case "RESET" when t.Length >= 3:
+                return new ParsedCommand(CommandKind.Reset, Item(t, 0));
 
-            case "ALWAYSON" when t.Length == 4 && TryParseOnOff(t[3], out var on):
-                return new ParsedCommand(CommandKind.AlwaysOn, t[2], flag: on);
+            case "ALWAYSON" when t.Length >= 4 && TryParseOnOff(t[t.Length - 1], out var on):
+                return new ParsedCommand(CommandKind.AlwaysOn, Item(t, 1), flag: on);
 
-            case "SMOKE" when t.Length == 4 && TryParseOnOff(t[3], out var smoke):
-                return new ParsedCommand(CommandKind.Smoke, t[2], flag: smoke);
+            case "SMOKE" when t.Length >= 4 && TryParseOnOff(t[t.Length - 1], out var smoke):
+                return new ParsedCommand(CommandKind.Smoke, Item(t, 1), flag: smoke);
 
-            case "BURNRATE" when t.Length == 4 && TryParseBurnRate(t[3], out var level):
-                return new ParsedCommand(CommandKind.BurnRate, t[2], number: level);
+            case "BURNRATE" when t.Length >= 4 && TryParseBurnRate(t[t.Length - 1], out var level):
+                return new ParsedCommand(CommandKind.BurnRate, Item(t, 1), number: level);
 
-            case "SCHEDULE" when t.Length == 4 && string.Equals(t[3], "off", StringComparison.OrdinalIgnoreCase):
-                return new ParsedCommand(CommandKind.Schedule, t[2], schedule: DailySchedule.AlwaysOn);
+            case "SCHEDULE" when t.Length >= 4 && string.Equals(t[t.Length - 1], "off", StringComparison.OrdinalIgnoreCase):
+                return new ParsedCommand(CommandKind.Schedule, Item(t, 1), schedule: DailySchedule.AlwaysOn);
 
-            case "SCHEDULE" when t.Length == 5 && ClockSetting.TryParse(t[3], out var onTime) && ClockSetting.TryParse(t[4], out var offTime):
-                return new ParsedCommand(CommandKind.Schedule, t[2], schedule: new DailySchedule(onTime, offTime));
+            case "SCHEDULE" when t.Length >= 5
+                && ClockSetting.TryParse(t[t.Length - 2], out var onTime)
+                && ClockSetting.TryParse(t[t.Length - 1], out var offTime):
+                return new ParsedCommand(CommandKind.Schedule, Item(t, 2), schedule: new DailySchedule(onTime, offTime));
 
             case "ADMINONLY" when t.Length == 3 && TryParseOnOff(t[2], out var adminOnly):
                 return new ParsedCommand(CommandKind.AdminOnly, flag: adminOnly);
@@ -152,19 +156,22 @@ public static class CommandParser
     {
         "HELP" => $"Usage: {prefix} help",
         "STATUS" => $"Usage: {prefix} status",
-        "LIST" => $"Usage: {prefix} list [all|lights|stations]",
-        "SHOW" => $"Usage: {prefix} show <item|all|lights|stations>",
-        "RESET" => $"Usage: {prefix} reset <item|all|lights|stations>",
-        "ALWAYSON" => $"Usage: {prefix} alwayson <item|group> on|off",
-        "SMOKE" => $"Usage: {prefix} smoke <item|group> on|off  (seen only by players with the Inferno client mod)",
-        "BURNRATE" => $"Usage: {prefix} burnrate <item|group> <{BurnRate.Min}..{BurnRate.Max}>  (0 = vanilla, each step 10 %)",
-        "SCHEDULE" => $"Usage: {prefix} schedule <item|group> <on HH:MM> <off HH:MM>   or   {prefix} schedule <item|group> off",
+        "SHOW" => $"Usage: {prefix} show <item>   (item = name as in game, e.g. hot tub; or all, lights, stations)",
+        "RESET" => $"Usage: {prefix} reset <item>",
+        "ALWAYSON" => $"Usage: {prefix} alwayson <item> on|off",
+        "SMOKE" => $"Usage: {prefix} smoke <item> on|off  (seen only by players with the Inferno client mod)",
+        "BURNRATE" => $"Usage: {prefix} burnrate <item> <{BurnRate.Min}..{BurnRate.Max}>  (0 = vanilla, each step 10 %)",
+        "SCHEDULE" => $"Usage: {prefix} schedule <item> <on HH:MM> <off HH:MM>   or   {prefix} schedule <item> off",
         "ADMINONLY" => $"Usage: {prefix} adminonly on|off",
         "HIDECOMMANDS" => $"Usage: {prefix} hidecommands on|off",
         "IGNORERAIN" => $"Usage: {prefix} ignorerain on|off",
         "SERVEROWNERSHIP" => $"Usage: {prefix} serverownership on|off",
         _ => $"Unknown command '{subcommand}'. Type {prefix} help",
     };
+
+    // Joins the item words: everything after the command word, minus the command's trailing arguments.
+    private static string Item(string[] tokens, int trailingArguments) =>
+        string.Join(" ", tokens, 2, tokens.Length - 2 - trailingArguments);
 
     private static bool TryParseOnOff(string text, out bool value)
     {

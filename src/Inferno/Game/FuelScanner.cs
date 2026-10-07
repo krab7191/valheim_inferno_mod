@@ -45,16 +45,26 @@ internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsSto
         get
         {
             var owned = 0;
+            var unattended = 0;
             foreach (var id in _fuel)
             {
                 var zdo = ZDOMan.instance?.GetZDO(id);
-                if (zdo is not null && ServerOwnership.IsServerSimulated(zdo))
+                if (zdo is null)
+                {
+                    continue;
+                }
+
+                if (ServerOwnership.IsServerSimulated(zdo))
                 {
                     owned++;
                 }
+                else if (!zdo.HasOwner())
+                {
+                    unattended++;
+                }
             }
 
-            return $"Tracking {_fuel.Count} fuel object(s) ({owned} handled by the server) and {_signs.Count} sign(s).";
+            return $"Tracking {_fuel.Count} fuel object(s): {unattended} with nobody nearby, {owned} handled by the server; {_signs.Count} sign(s).";
         }
     }
 
@@ -122,11 +132,18 @@ internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsSto
                 continue;
             }
 
-            var decision = FuelController.RestoreForShutdown(ReadState(zdo, item));
-            if (decision.HasChanges)
+            try
             {
-                Apply(zdo, decision);
-                restored++;
+                var decision = FuelController.RestoreForShutdown(ReadState(zdo, item));
+                if (decision.HasChanges)
+                {
+                    Apply(zdo, decision);
+                    restored++;
+                }
+            }
+            catch (Exception e)
+            {
+                Diagnostics.Error($"switching {item.PrefabName} back on at shutdown", e);
             }
         }
 
@@ -147,20 +164,27 @@ internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsSto
         var end = Math.Min(_sweepIndex + SweepChunkSize, _sweepBuffer.Count);
         for (; _sweepIndex < end; _sweepIndex++)
         {
-            var zdo = _sweepBuffer[_sweepIndex];
-            if (zdo is null || !zdo.IsValid())
+            try
             {
-                continue;
-            }
+                var zdo = _sweepBuffer[_sweepIndex];
+                if (zdo is null || !zdo.IsValid())
+                {
+                    continue;
+                }
 
-            var prefab = zdo.GetPrefab();
-            if (discovery.ByHash.ContainsKey(prefab))
-            {
-                _sweepFuel.Add(zdo.m_uid);
+                var prefab = zdo.GetPrefab();
+                if (discovery.ByHash.ContainsKey(prefab))
+                {
+                    _sweepFuel.Add(zdo.m_uid);
+                }
+                else if (discovery.SignHashes.Contains(prefab))
+                {
+                    _sweepSigns.Add(zdo.m_uid);
+                }
             }
-            else if (discovery.SignHashes.Contains(prefab))
+            catch (Exception e)
             {
-                _sweepSigns.Add(zdo.m_uid);
+                Diagnostics.Error("looking for fires and signs in the world", e);
             }
         }
 
@@ -207,20 +231,27 @@ internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsSto
                 continue;
             }
 
-            ownership.Manage(zdo, realNow);
-            float? baseline = _baselines.TryGetValue(id, out var b) ? b : null;
-            if (!_settingsCache.TryGetValue(item.PrefabName, out var settings))
+            try
             {
-                settings = store.GetItem(item.PrefabName);
-                _settingsCache[item.PrefabName] = settings;
-            }
+                ownership.Manage(zdo, realNow);
+                float? baseline = _baselines.TryGetValue(id, out var b) ? b : null;
+                if (!_settingsCache.TryGetValue(item.PrefabName, out var settings))
+                {
+                    settings = store.GetItem(item.PrefabName);
+                    _settingsCache[item.PrefabName] = settings;
+                }
 
-            var decision = FuelController.Decide(settings, item.Fuel, ReadState(zdo, item), baseline, now, ignoreRain);
-            _baselines[id] = decision.Baseline;
-            if (decision.HasChanges)
+                var decision = FuelController.Decide(settings, item.Fuel, ReadState(zdo, item), baseline, now, ignoreRain);
+                _baselines[id] = decision.Baseline;
+                if (decision.HasChanges)
+                {
+                    Apply(zdo, decision);
+                    writes++;
+                }
+            }
+            catch (Exception e)
             {
-                Apply(zdo, decision);
-                writes++;
+                Diagnostics.Error($"applying settings to {item.PrefabName}", e);
             }
         }
 
@@ -236,13 +267,29 @@ internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsSto
         {
             var zdo = ZDOMan.instance.GetZDO(id);
             var text = zdo?.GetString(ZDOVars.s_text);
-            if (zdo is null || string.IsNullOrEmpty(text) || !commands.HandleSign(zdo, text!))
+            if (zdo is null || string.IsNullOrEmpty(text))
             {
                 continue;
             }
 
-            // Clear the command so it runs once and the sign is reusable.
-            zdo.Set(ZDOVars.s_text, string.Empty);
+            string answer;
+            try
+            {
+                if (!commands.HandleSign(zdo, text!, out answer))
+                {
+                    continue;
+                }
+            }
+            catch (Exception e)
+            {
+                // Replace the command anyway, so a failing command doesn't run again every few seconds.
+                Diagnostics.Error("running a sign command", e);
+                answer = "Inferno error; see server log.";
+            }
+
+            // Replace the command with the short answer: it runs once, the result stays readable, and writing the
+            // next command over it reuses the sign.
+            zdo.Set(ZDOVars.s_text, answer);
         }
     }
 

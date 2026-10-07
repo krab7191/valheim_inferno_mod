@@ -40,13 +40,20 @@ internal static class Players
         return new CommandSender(name, platformId, ZNet.instance.IsAdmin(platformId));
     }
 
-    /// <summary>Shows lines in the top-left corner of a player's screen (works on vanilla clients).</summary>
+    /// <summary>
+    /// Shows lines in the top-left corner of a player's screen (works on vanilla clients). Sent as one multi-line
+    /// message: the game shows queued messages one second each, but a single message stays for its full fade time.
+    /// It also lands in the player's message log (Compendium → Logs).
+    /// </summary>
     public static void ShowMessage(ZNetPeer peer, IReadOnlyList<string> lines)
     {
-        foreach (var line in ReplyLimiter.Limit(lines, MaxOnScreenLines))
+        if (lines.Count == 0)
         {
-            ZRoutedRpc.instance.InvokeRoutedRPC(peer.m_uid, "ShowMessage", (int)MessageHud.MessageType.TopLeft, "[Inferno] " + line);
+            return;
         }
+
+        var text = "[Inferno] " + string.Join("\n", ReplyLimiter.Limit(lines, MaxOnScreenLines));
+        ZRoutedRpc.instance.InvokeRoutedRPC(peer.m_uid, "ShowMessage", (int)MessageHud.MessageType.TopLeft, text);
     }
 
     /// <summary>Prints lines in a player's F5 console (works on vanilla clients).</summary>

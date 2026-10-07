@@ -94,9 +94,13 @@ internal sealed class CommandService(CommandExecutor executor, ConfigSettingsSto
         return true;
     }
 
-    /// <summary>Handles command text found on a sign. Returns true if it was an Inferno command.</summary>
-    public bool HandleSign(ZDO sign, string text)
+    /// <summary>
+    /// Handles command text found on a sign. Returns true if it was an Inferno command; <paramref name="answer"/> is
+    /// then the short answer to write back onto the sign.
+    /// </summary>
+    public bool HandleSign(ZDO sign, string text, out string answer)
     {
+        answer = string.Empty;
         var outcome = CommandParser.Parse(text, out var command, out var error);
         if (outcome == ParseOutcome.NotACommand)
         {
@@ -124,6 +128,7 @@ internal sealed class CommandService(CommandExecutor executor, ConfigSettingsSto
             Players.ShowMessage(peer, reply);
         }
 
+        answer = SignReply.Summarize(reply);
         return true;
     }
 
@@ -169,9 +174,9 @@ internal sealed class CommandService(CommandExecutor executor, ConfigSettingsSto
         {
             result = executor.Execute(command, sender);
         }
-        catch (Exception e) when (e is ArgumentException or InvalidOperationException)
+        catch (Exception e)
         {
-            log.LogError($"  failed: {e}");
+            Diagnostics.Error($"running the {source} command '{Shorten(text)}'", e);
             return ["Something went wrong; see the server log."];
         }
 
@@ -190,6 +195,12 @@ internal sealed class CommandService(CommandExecutor executor, ConfigSettingsSto
         {
             _snapshot = store.Snapshot();
             SettingsChanged?.Invoke();
+        }
+
+        // On-screen replies fade quickly; the log keeps them.
+        foreach (var line in result.Reply)
+        {
+            log.LogInfo($"  reply: {line}");
         }
 
         return result.Reply;

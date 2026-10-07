@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using BepInEx.Logging;
 using Inferno.Core.Sync;
@@ -85,6 +86,18 @@ internal sealed class ClientSync(ConfigSettingsStore store, ManualLogSource log)
     }
 
     private void OnSettings(long sender, string text)
+    {
+        try
+        {
+            ApplySettings(text);
+        }
+        catch (Exception e)
+        {
+            Diagnostics.Error("applying settings received from the server", e);
+        }
+    }
+
+    private void ApplySettings(string text)
     {
         if (!SettingsMessage.TryDecode(text, out var message))
         {

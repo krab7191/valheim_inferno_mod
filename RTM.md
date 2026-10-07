@@ -39,6 +39,8 @@ mod (phase 2) adds an in-game settings tab and client-only features.
 | R-18 | `!fires status` (read-only, always allowed) shows versions, tracked objects, in-game time and general settings — lets remote/console testers confirm Inferno runs | Yes | 1 | IMPL | — | `CommandExecutorTests`, C-12 |
 | R-19 | Hardening: per-player rate limit across all command sources (burst 10, 1/s; one warning, then silent), 200-character command cap, truncated log lines, batched settings broadcasts (≤ 2/s), hello cooldown, client-side batching of menu edits (0.75 s) | Yes | 1 | IMPL | — | `RateLimiterTests`, `CommandParserTests`, C-13, C-14 |
 | R-20 | **Testing priority: server-only with vanilla clients first**; console players test via signs with a plain-language guide | — | — | APPROVED | docs/tester-guide.md | in-game checklist P1 |
+| R-21 | Commands refer to items by their **in-game name** (case/space/punctuation-insensitive; shared names change all matching items; internal names still work; "did you mean" suggestions) | Yes | 1 | IMPL | — | `ItemCatalogTests`, `CommandParserTests`, C-15 |
+| R-22 | Readable replies: one combined on-screen message; sign commands leave a short answer on the sign; replies logged on the server | Yes | 1 | IMPL | — | `SignReplyTests`, C-05 |
 | R-16 | Uninstall leaves no fire dark: scheduled-off lights are switched back on before the final save on shutdown; fuel is left as is | Yes (normal shutdown only) | 1 | IMPL | §4.11 | `FuelControllerTests`, S-06 |
 | R-14 | Publishing quality: README that accurately describes features, sample config file, list of Valheim versions tested | — | 1 | IMPL | README.md, docs/sample-config.cfg | — |
 
@@ -340,6 +342,10 @@ never call; adds smoke toggle and rain/roof overrides for its own user.
 | 2026-10-07 | Command input via chat, signs, F5 console (`listkeys fires …`) and config file | Owner |
 | 2026-10-07 | Build server ownership mode, opt-in, default off | Owner |
 | 2026-10-07 | Crossplay works with BepInEx (confirmed by owner) | Owner |
+| 2026-10-07 | In-game (local server, vanilla client): always-on, schedule (incl. midnight), fuel kept while off, clock vs. sun, sign commands, status, in-game names, settings saved — passed | Owner |
+| 2026-10-07 | Replies: combined message + answer on sign; commands use in-game item names | Owner |
+| 2026-10-07 | Frigid Kiln (`piece_FrostKiln`, ice → Liquid Frost) is a production station: vanilla by default, like the charcoal kiln. Rule: a smelter-type piece is a light source only if it has no ore slots **and** produces nothing (hot tub) | Owner |
+| 2026-10-07 | First local server run: discovery, display names and shutdown hook verified in-game | Owner |
 | 2026-10-07 | Hardening; prioritise server-only testing (most players are on console or won't install mods) | Owner |
 | 2026-10-07 | Phase 2 go-ahead: lightest option → no new dependency; ConfigurationManager menu; smoke toggle | Owner |
 | 2026-10-07 | Keep working without in-game tests; get as close to "perfect server-only" as possible | Owner |

@@ -16,7 +16,7 @@ public sealed class CommandExecutor
     private static readonly string[] HelpLines =
     [
         "Inferno: type '!fires <command>' in chat or on a sign, or 'listkeys fires <command>' in the F5 console.",
-        "<item> = an item name from 'list', or a group: all, lights, stations.",
+        "<item> = the name as in game (e.g. hot tub, standing wood torch), or: all, lights, stations.",
         "status  ·  list [all|lights|stations]  ·  show <item>  ·  reset <item>",
         "alwayson <item> on|off  ·  smoke <item> on|off (client mod only)",
         "burnrate <item> <-10..10>   (0 = vanilla, each step 10 %)",
@@ -95,7 +95,7 @@ public sealed class CommandExecutor
         var s = _store.GetItem(item.PrefabName);
         var kind = item.Kind == ItemKind.LightSource ? "light" : "station";
         var schedule = item.CanSchedule ? s.Schedule.ToString() : "n/a";
-        return $"{item.PrefabName} ({item.DisplayName}, {kind}): alwayson={OnOff(s.AlwaysOn)} burnrate={Number(s.BurnRateLevel)} schedule={schedule} smoke={OnOff(s.Smoke)}";
+        return $"{item.DisplayName} ({item.PrefabName}, {kind}): alwayson={OnOff(s.AlwaysOn)} burnrate={Number(s.BurnRateLevel)} schedule={schedule} smoke={OnOff(s.Smoke)}";
     }
 
     private CommandResult Show(string target)
@@ -170,7 +170,10 @@ public sealed class CommandExecutor
         error = string.Empty;
         if (!_catalog.TryResolve(target, out items))
         {
-            error = $"Unknown item or group '{target}'. Use 'list' to see all items.";
+            var suggestions = _catalog.Suggest(target);
+            error = suggestions.Count > 0
+                ? $"Unknown item '{target}'. Did you mean: {string.Join(", ", suggestions)}?"
+                : $"Unknown item '{target}'. Use 'list' to see all items.";
             return false;
         }
 

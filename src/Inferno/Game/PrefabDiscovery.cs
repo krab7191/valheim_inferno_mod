@@ -133,15 +133,17 @@ internal static class PrefabDiscovery
             var smelter = prefab.GetComponent<Smelter>();
             if (smelter != null)
             {
-                // Pieces like the charcoal kiln take wood as ore and have no fuel. A smelter without ore slots (the
-                // hot tub) just burns fuel while lit, like a fire, so it counts as a light source (always on by
-                // default); it has no on/off switch, so no schedule.
+                // Pieces like the charcoal kiln take wood as ore and have no fuel. A smelter that has no ore slots and
+                // produces nothing (the hot tub) just burns fuel while lit, like a fire, so it counts as a light
+                // source (always on by default; no on/off switch, so no schedule). One that turns its fuel into an
+                // item (the Frigid Kiln: ice → Liquid Frost) is a production station and stays vanilla by default.
                 if (smelter.m_maxFuel <= 0 || smelter.m_fuelItem == null)
                 {
                     return null;
                 }
 
-                var kind = smelter.m_maxOre <= 0 ? ItemKind.LightSource : ItemKind.FuelStation;
+                var producesItems = smelter.m_conversion is not null && smelter.m_conversion.Exists(c => c?.m_to != null);
+                var kind = smelter.m_maxOre <= 0 && !producesItems ? ItemKind.LightSource : ItemKind.FuelStation;
                 return Create(prefab, smelter.m_name, kind, new FuelItemInfo(smelter.m_maxFuel, hasOnOffSwitch: false));
             }
 

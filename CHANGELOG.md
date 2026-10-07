@@ -24,6 +24,8 @@ versioning: [Semantic Versioning](https://semver.org/).
   `IgnoreRain`.
 - `!fires status` for remote testing; per-player rate limit, command length cap, batched broadcasts and menu
   edits; plain-language tester guide for players without mods.
+- Commands accept in-game item names (`!fires alwayson hot tub on`) with suggestions for typos; replies are one
+  combined message, sign commands leave a short answer on the sign, and replies are logged on the server.
 - BepInEx config file with live reload; audit log of every command, change and config-file edit.
 - Release packaging (`dotnet build -c Release` → `artifacts/Inferno-<version>.zip`), sample config, in-game test
   checklist.

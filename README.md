@@ -50,7 +50,7 @@ Three ways to type the same commands:
 | Where | How | Works when | Reply |
 |-------|-----|------------|-------|
 | Chat | `!fires <command>` | **At least one other player is online.** Valheim sends chat directly to other players, so a lone player's chat never reaches the server | On screen, top left |
-| Sign | Write `!fires <command>` on any sign | Always, including alone and on Xbox. Signs hold 50 characters, so use groups for long item names | On screen; the sign is cleared |
+| Sign | Write `!fires <command>` on any sign | Always, including alone and on Xbox. Signs hold 50 characters | On screen, and a short answer replaces the command on the sign |
 | F5 console | `listkeys fires <command>` | Always. Needs the `-console` launch option (Steam: Properties → Launch options). Not available on Xbox | In the console |
 
 The F5 form borrows the vanilla `listkeys` command because Valheim only forwards built-in server commands to the
@@ -61,7 +61,7 @@ server. Without Inferno it just lists world keys, so it is harmless.
 | `help` | `!fires help` |
 | `status` | `!fires status` (is Inferno running? versions, counts, in-game time) |
 | `list [all\|lights\|stations]` | `!fires list lights` |
-| `show <item>` | `!fires show hearth` |
+| `show <item>` | `!fires show hot tub` |
 | `alwayson <item> on\|off` | `!fires alwayson lights off` |
 | `smoke <item> on\|off` | `!fires smoke lights off` (client mod players only) |
 | `burnrate <item> <-10..10>` | `!fires burnrate all -5` |
@@ -73,7 +73,12 @@ server. Without Inferno it just lists world keys, so it is harmless.
 | `ignorerain on\|off` | `!fires ignorerain on` |
 | `serverownership on\|off` | `!fires serverownership on` |
 
-`<item>` is an item name from `list` (e.g. `piece_groundtorch_wood`) or a group: `all`, `lights`, `stations`.
+`<item>` is the name **as shown in game**, e.g. `hot tub`, `standing wood torch`, `campfire` (case, spaces and
+punctuation don't matter; a name shared by several items changes all of them), or a group: `all`, `lights`,
+`stations`. Internal names like `piece_bathtub` work too. Typos get "did you mean" suggestions.
+
+Replies appear top left for a few seconds and stay in the game's message log (**Compendium → Logs**). A command
+written on a sign is replaced by a short answer, so the result stays readable until you write the next command.
 
 **Example: torches that light at dusk and never need fuel.**
 `always on` overrides the schedule, so switch it off and set the burn rate to −10:

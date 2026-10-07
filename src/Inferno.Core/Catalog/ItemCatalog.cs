@@ -71,8 +71,9 @@ public sealed class ItemCatalog
     }
 
     /// <summary>
-    /// Resolves a command target: a group (<c>all</c>, <c>lights</c>, <c>stations</c>) or a prefab name.
-    /// Returns false for unknown targets.
+    /// Resolves a command target: a group (<c>all</c>, <c>lights</c>, <c>stations</c>), an internal prefab name, or an
+    /// in-game name. In-game names ignore case, spaces and punctuation ("Hot Tub" = "hot tub" = "hottub"); several
+    /// items can share one in-game name, and then all of them are returned. Returns false for unknown targets.
     /// </summary>
     public bool TryResolve(string target, out IReadOnlyList<CatalogItem> items)
     {
@@ -95,8 +96,56 @@ public sealed class ItemCatalog
             return true;
         }
 
-        items = [];
-        return false;
+        var key = Normalize(target);
+        var byName = key.Length == 0 ? [] : _items.Where(i => Normalize(i.DisplayName) == key).ToList();
+        items = byName;
+        return byName.Count > 0;
+    }
+
+    /// <summary>
+    /// In-game names that look like what the player typed (one contains the other, ignoring case, spaces and
+    /// punctuation), for "did you mean" hints. At most <paramref name="max"/>, sorted.
+    /// </summary>
+    public IReadOnlyList<string> Suggest(string target, int max = 3)
+    {
+        var key = Normalize(target);
+        if (key.Length == 0)
+        {
+            return [];
+        }
+
+        return _items
+            .Select(i => i.DisplayName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(name =>
+            {
+                var candidate = Normalize(name);
+                return candidate.Contains(key) || key.Contains(candidate);
+            })
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .Take(max)
+            .ToList();
+    }
+
+    /// <summary>Lower-case letters and digits only, so names match regardless of spacing and punctuation.</summary>
+    internal static string Normalize(string? text)
+    {
+        if (text is null)
+        {
+            return string.Empty;
+        }
+
+        var chars = new char[text.Length];
+        var count = 0;
+        foreach (var c in text)
+        {
+            if (char.IsLetterOrDigit(c))
+            {
+                chars[count++] = char.ToLowerInvariant(c);
+            }
+        }
+
+        return new string(chars, 0, count);
     }
 
     private static bool IsGroupName(string name) =>

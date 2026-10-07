@@ -12,13 +12,14 @@ PC, Xbox or PlayStation. This takes about 15 minutes.
 ## How to talk to Inferno: write on a sign
 
 Build a sign (or use any sign) and write one of these on it. Inferno reads it within a few seconds, shows the
-answer in the **top-left corner of your screen**, and clears the sign.
+answer in the **top-left corner of your screen**, and writes a short answer onto the sign. Missed the
+on-screen text? Open your inventory → **Compendium → Logs**. Items are named as in the game (e.g. `hot tub`).
 
 | Write this on a sign | What should happen |
 |----------------------|--------------------|
 | `!fires status` | Top left: "Inferno … running on Valheim …" and a few lines of numbers |
 | `!fires help` | Top left: a short list of commands |
-| `!fires show hearth` | Top left: the hearth's settings |
+| `!fires show hot tub` | Top left: the hot tub's settings |
 
 If **nothing** appears after 10 seconds, tell us: that's important.
 
@@ -31,7 +32,7 @@ Tick each one and note anything odd: **what you did, what you expected, what hap
 (time of day is fine). Screenshots or a short clip help a lot.
 
 1. **Join the server.** You get in normally, no error or kick. *(Most important for Xbox/PlayStation.)*
-2. **Sign test.** Write `!fires status` on a sign. You see the answer top left and the sign is empty again.
+2. **Sign test.** Write `!fires status` on a sign. You see the answer top left and on the sign.
 3. **New torch.** Build a standing torch. Within a few seconds, look at it: fuel shows as full (e.g. 4/4) and
    it's lit.
 4. **Stays lit.** Come back to that torch after a full in-game day. Still lit and full.

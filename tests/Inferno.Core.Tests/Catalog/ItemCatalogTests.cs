@@ -50,7 +50,52 @@ public class ItemCatalogTests
     }
 
     [Theory]
+    [InlineData("Standing wood torch")]
+    [InlineData("standing wood torch")]
+    [InlineData("STANDINGWOODTORCH")]
+    [InlineData("standing-wood torch!")]
+    public void TryResolve_InGameName_IgnoresCaseSpacesAndPunctuation(string target)
+    {
+        Assert.True(TestData.Catalog().TryResolve(target, out var items));
+        Assert.Equal("piece_groundtorch_wood", Assert.Single(items).PrefabName);
+    }
+
+    [Fact]
+    public void TryResolve_SharedInGameName_ReturnsAllItemsWithIt()
+    {
+        var castle = new CatalogItem("CastleKit_groundtorch_unlit", "Standing wood torch", ItemKind.LightSource, Fuel);
+        var catalog = new ItemCatalog([TestData.Torch, castle, TestData.Hearth]);
+
+        Assert.True(catalog.TryResolve("standing wood torch", out var items));
+        Assert.Equal(["CastleKit_groundtorch_unlit", "piece_groundtorch_wood"], items.Select(i => i.PrefabName));
+        Assert.Equal(["Standing wood torch"], catalog.Suggest("torch"));
+    }
+
+    [Theory]
+    [InlineData("torch", new[] { "Standing wood torch" })]
+    [InlineData("standing wood torch extra", new[] { "Standing wood torch" })] // typed name contains a real one
+    [InlineData("t", new[] { "Hearth", "Smelter", "Standing wood torch" })]
+    [InlineData("zzz", new string[0])]
+    [InlineData("!!", new string[0])]
+    [InlineData(null, new string[0])]
+    public void Suggest_FindsSimilarNames(string? target, string[] expected) =>
+        Assert.Equal(expected, TestData.Catalog().Suggest(target!));
+
+    [Fact]
+    public void Suggest_RespectsMax() =>
+        Assert.Equal(["Hearth"], TestData.Catalog().Suggest("t", max: 1));
+
+    [Theory]
+    [InlineData("Hot Tub!", "hottub")]
+    [InlineData("Ölofen 2", "ölofen2")]
+    [InlineData("", "")]
+    [InlineData(null, "")]
+    public void Normalize_KeepsOnlyLettersAndDigits(string? text, string expected) =>
+        Assert.Equal(expected, ItemCatalog.Normalize(text));
+
+    [Theory]
     [InlineData("nope")]
+    [InlineData("!!")]
     [InlineData(null)]
     public void TryResolve_Unknown_ReturnsFalse(string? target)
     {

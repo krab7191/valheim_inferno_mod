@@ -47,6 +47,23 @@ public class CommandParserTests
     [InlineData("ListKeys FIRES help")]
     public void Parse_Help(string text) => Assert.Equal(CommandKind.Help, Ok(text).Kind);
 
+    [Theory]
+    [InlineData("!fires show hot tub", CommandKind.Show, "hot tub")]
+    [InlineData("!fires reset Standing  Wood Torch", CommandKind.Reset, "Standing Wood Torch")]
+    [InlineData("!fires list hot tub", CommandKind.List, "hot tub")]
+    [InlineData("!fires alwayson hot tub on", CommandKind.AlwaysOn, "hot tub")]
+    [InlineData("!fires smoke standing wood torch off", CommandKind.Smoke, "standing wood torch")]
+    [InlineData("!fires burnrate standing wood torch -5", CommandKind.BurnRate, "standing wood torch")]
+    [InlineData("!fires schedule standing wood torch off", CommandKind.Schedule, "standing wood torch")]
+    [InlineData("!fires schedule standing wood torch 18:00 06:00", CommandKind.Schedule, "standing wood torch")]
+    [InlineData("listkeys fires alwayson hot tub off", CommandKind.AlwaysOn, "hot tub")]
+    public void Parse_MultiWordItemNames(string text, CommandKind kind, string target)
+    {
+        var command = Ok(text);
+        Assert.Equal(kind, command.Kind);
+        Assert.Equal(target, command.Target);
+    }
+
     [Fact]
     public void Parse_Status() => Assert.Equal(CommandKind.Status, Ok("!fires status").Kind);
 
@@ -184,7 +201,6 @@ public class CommandParserTests
     [Theory]
     [InlineData("!fires help me", "Usage: !fires help")]
     [InlineData("!fires status now", "Usage: !fires status")]
-    [InlineData("!fires list a b", "Usage: !fires list")]
     [InlineData("!fires show", "Usage: !fires show")]
     [InlineData("!fires reset", "Usage: !fires reset")]
     [InlineData("!fires alwayson lights maybe", "Usage: !fires alwayson")]

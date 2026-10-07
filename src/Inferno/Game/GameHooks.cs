@@ -39,7 +39,7 @@ internal static class GameHooks
             }
             catch (Exception e)
             {
-                runtime.Log.LogError($"Chat hook failed; message passed through unchanged. {e}");
+                Diagnostics.Error("checking a chat message for commands (message passed through unchanged)", e);
                 return true;
             }
         }
@@ -81,7 +81,7 @@ internal static class GameHooks
             }
             catch (Exception e)
             {
-                runtime.Log.LogError($"Console hook failed; command passed to vanilla. {e}");
+                Diagnostics.Error("handling an F5 console command (passed on to the game)", e);
                 return true;
             }
         }
@@ -108,7 +108,7 @@ internal static class GameHooks
             }
             catch (Exception e)
             {
-                runtime.Log.LogError($"Server-owned fire RPC hook failed; passed to vanilla. {e}");
+                Diagnostics.Error("handling a player action on a server-owned fire (passed on to the game)", e);
                 return true;
             }
         }
@@ -152,7 +152,7 @@ internal static class GameHooks
             }
             catch (Exception e)
             {
-                runtime!.Log.LogError($"Ownership hook failed; vanilla owner change allowed. {e}");
+                Diagnostics.Error("keeping a fire server-owned (vanilla owner change allowed)", e);
                 return true;
             }
         }
@@ -177,7 +177,7 @@ internal static class GameHooks
             }
             catch (Exception e)
             {
-                runtime.Log.LogError($"Restoring lights on shutdown failed. {e}");
+                Diagnostics.Error("restoring lights at shutdown", e);
             }
         }
     }

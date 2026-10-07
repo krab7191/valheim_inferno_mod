@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using BepInEx.Logging;
 using Inferno.Core.Permissions;
@@ -50,6 +51,18 @@ internal sealed class SyncServer(ConfigSettingsStore store, CommandService comma
 
     private void OnHello(long sender, int protocolVersion)
     {
+        try
+        {
+            Hello(sender, protocolVersion);
+        }
+        catch (Exception e)
+        {
+            Diagnostics.Error("answering a client mod's hello", e);
+        }
+    }
+
+    private void Hello(long sender, int protocolVersion)
+    {
         var peer = Players.FindPeer(sender);
         var now = UnityEngine.Time.realtimeSinceStartup;
         if (peer is null || (_lastHello.TryGetValue(sender, out var last) && now - last < HelloCooldownSeconds))
@@ -71,7 +84,17 @@ internal sealed class SyncServer(ConfigSettingsStore store, CommandService comma
         Send(peer);
     }
 
-    private void OnCommand(long sender, string text) => commands.HandleMenu(sender, text);
+    private void OnCommand(long sender, string text)
+    {
+        try
+        {
+            commands.HandleMenu(sender, text);
+        }
+        catch (Exception e)
+        {
+            Diagnostics.Error("running a settings-menu command", e);
+        }
+    }
 
     private void Broadcast()
     {
@@ -85,7 +108,14 @@ internal sealed class SyncServer(ConfigSettingsStore store, CommandService comma
                 continue;
             }
 
-            Send(peer);
+            try
+            {
+                Send(peer);
+            }
+            catch (Exception e)
+            {
+                Diagnostics.Error("sending settings to a client mod", e);
+            }
         }
     }
 

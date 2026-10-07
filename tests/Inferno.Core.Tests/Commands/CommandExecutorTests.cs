@@ -84,9 +84,9 @@ public class CommandExecutorTests
 
         Assert.Equal(
             [
-                "hearth (Hearth, light): alwayson=on burnrate=0 schedule=always on smoke=on",
-                "piece_groundtorch_wood (Standing wood torch, light): alwayson=on burnrate=0 schedule=always on smoke=on",
-                "smelter (Smelter, station): alwayson=off burnrate=0 schedule=n/a smoke=on",
+                "Hearth (hearth, light): alwayson=on burnrate=0 schedule=always on smoke=on",
+                "Standing wood torch (piece_groundtorch_wood, light): alwayson=on burnrate=0 schedule=always on smoke=on",
+                "Smelter (smelter, station): alwayson=off burnrate=0 schedule=n/a smoke=on",
             ],
             result.Reply);
     }
@@ -102,8 +102,9 @@ public class CommandExecutorTests
     }
 
     [Theory]
-    [InlineData("!fires show nope", "Unknown item or group 'nope'. Use 'list' to see all items.")]
-    [InlineData("!fires alwayson nope on", "Unknown item or group 'nope'. Use 'list' to see all items.")]
+    [InlineData("!fires show nope", "Unknown item 'nope'. Use 'list' to see all items.")]
+    [InlineData("!fires alwayson nope on", "Unknown item 'nope'. Use 'list' to see all items.")]
+    [InlineData("!fires show torch", "Unknown item 'torch'. Did you mean: Standing wood torch?")]
     public void UnknownTarget_Explains(string text, string expected) =>
         Assert.Equal([expected], Run(text).Reply);
 
@@ -131,6 +132,15 @@ public class CommandExecutorTests
         Assert.Equal("alwayson=on burnrate=0 schedule=always on smoke=on", change.NewValue);
         Assert.True(_store.GetItem("smelter").AlwaysOn);
         Assert.Equal(1, _store.Writes);
+    }
+
+    [Fact]
+    public void InGameName_ChangesTheItem()
+    {
+        var result = Run("!fires burnrate standing wood torch -3");
+
+        Assert.Equal(["BurnRate = -3: 1 of 1 item(s) changed."], result.Reply);
+        Assert.Equal(-3, _store.GetItem("piece_groundtorch_wood").BurnRateLevel);
     }
 
     [Fact]

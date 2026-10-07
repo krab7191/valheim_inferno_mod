@@ -158,7 +158,14 @@ internal sealed class ServerOwnership(PrefabDiscovery.Result discovery, ISetting
 
             var data = _forwards[i].Data;
             _forwards.RemoveAt(i);
-            RouteRpc(ZRoutedRpc.instance, data);
+            try
+            {
+                RouteRpc(ZRoutedRpc.instance, data);
+            }
+            catch (Exception e)
+            {
+                Diagnostics.Error("passing a player's action on to them", e);
+            }
         }
 
         _loans.Prune(now);
@@ -170,10 +177,17 @@ internal sealed class ServerOwnership(PrefabDiscovery.Result discovery, ISetting
         var released = 0;
         foreach (var zdo in zdos)
         {
-            if (zdo is not null && zdo.GetOwner() == ServerId && discovery.OwnershipCandidates.ContainsKey(zdo.GetPrefab()))
+            try
             {
-                zdo.SetOwner(0L);
-                released++;
+                if (zdo is not null && zdo.GetOwner() == ServerId && discovery.OwnershipCandidates.ContainsKey(zdo.GetPrefab()))
+                {
+                    zdo.SetOwner(0L);
+                    released++;
+                }
+            }
+            catch (Exception e)
+            {
+                Diagnostics.Error("giving a server-owned fire back", e);
             }
         }
 
