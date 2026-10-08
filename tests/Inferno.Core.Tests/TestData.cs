@@ -23,6 +23,7 @@ internal static class TestData
 internal sealed class FakeSettingsStore(ItemCatalog catalog) : ISettingsStore
 {
     private readonly Dictionary<string, ItemSettings> _items = [];
+    private readonly Dictionary<string, ItemSettings> _objects = [];
 
     public GeneralSettings General { get; set; } = GeneralSettings.Default;
 
@@ -42,6 +43,22 @@ internal sealed class FakeSettingsStore(ItemCatalog catalog) : ISettingsStore
     public void SetItem(string prefabName, ItemSettings settings)
     {
         _items[prefabName] = settings;
+        Writes++;
+    }
+
+    public ItemSettings? GetObject(string objectKey) => _objects.TryGetValue(objectKey, out var s) ? s : null;
+
+    public void SetObject(string objectKey, ItemSettings? settings)
+    {
+        if (settings is null)
+        {
+            _objects.Remove(objectKey);
+        }
+        else
+        {
+            _objects[objectKey] = settings;
+        }
+
         Writes++;
     }
 }

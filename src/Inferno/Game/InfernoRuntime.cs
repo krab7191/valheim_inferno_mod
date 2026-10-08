@@ -46,6 +46,7 @@ internal sealed class InfernoRuntime : IDisposable
         var commands = new CommandService(new CommandExecutor(discovery.Catalog, store, () => Current?.StatusLines() ?? []), store, log);
         var ownership = new ServerOwnership(discovery, store, log);
         var scanner = new FuelScanner(discovery, store, commands, ownership, log);
+        commands.FindNearby = scanner.Nearby;
         var sync = new SyncServer(store, commands, log);
         sync.Register(ZRoutedRpc.instance);
         Current = new InfernoRuntime(log, store, commands, scanner, ownership, sync, discovery);

@@ -84,6 +84,34 @@ public class CommandParserTests
     }
 
     [Fact]
+    public void Parse_HelpTopic()
+    {
+        var command = Ok("!fires help presets");
+        Assert.Equal(CommandKind.Help, command.Kind);
+        Assert.Equal("presets", command.Name);
+    }
+
+    [Theory]
+    [InlineData("!fires all preset eternal", "Did you mean: !fires preset eternal all")]
+    [InlineData("!fires torches burnrate 5", "Did you mean: !fires burnrate torches 5")]
+    [InlineData("!fires hot tub alwayson on", "Did you mean: !fires alwayson hot tub on")]
+    [InlineData("!fires torches schedule night", "Did you mean: !fires schedule torches night")]
+    [InlineData("listkeys fires hot tub show", "Did you mean: listkeys fires show hot tub")]
+    [InlineData("!fires torches preset", "Did you mean: !fires preset torches")]
+    public void Parse_WrongOrder_SuggestsCorrectOrder(string text, string expected) =>
+        Assert.Equal(expected, Invalid(text));
+
+    [Theory]
+    [InlineData("!fires torches burnrate fast")] // reordering doesn't make it valid either
+    [InlineData("!fires banana split")]          // no command word anywhere
+    public void Parse_WrongOrder_NoValidSuggestion_FallsBackToUnknown(string text) =>
+        Assert.StartsWith("Unknown command", Invalid(text), System.StringComparison.Ordinal);
+
+    [Fact]
+    public void Parse_KnownCommandWithBadArguments_KeepsUsage() =>
+        Assert.StartsWith("Usage: !fires burnrate", Invalid("!fires burnrate torches preset"), System.StringComparison.Ordinal);
+
+    [Fact]
     public void Parse_Undo() => Assert.Equal(CommandKind.Undo, Ok("!fires undo").Kind);
 
     [Fact]
@@ -221,7 +249,7 @@ public class CommandParserTests
     }
 
     [Theory]
-    [InlineData("!fires help me", "Usage: !fires help")]
+    [InlineData("!fires help me now", "Usage: !fires help")]
     [InlineData("!fires status now", "Usage: !fires status")]
     [InlineData("!fires preset", "Usage: !fires preset")]
     [InlineData("!fires undo it", "Usage: !fires undo")]

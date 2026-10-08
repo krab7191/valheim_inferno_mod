@@ -3,6 +3,8 @@
 **Server-side control over every fire, torch and fuel-burning station in Valheim. Players install nothing,
 so it works with Xbox / Game Pass crossplay.**
 
+Source code, documentation and issue tracker: https://github.com/krab7191/valheim_inferno_mod
+
 > **Status: beta (0.1.0).** Every feature is implemented and unit-tested. Features marked *Available* have also
 > been verified in-game on a dedicated server with vanilla PC clients; the others are awaiting in-game testing
 > (see [Compatibility](#compatibility)).
@@ -45,9 +47,10 @@ with it.
    `BepInEx/plugins/Inferno/` folder.
 3. Restart the server. The log (`BepInEx/LogOutput.log`) shows `Inferno … loaded` and lists every item it found.
 4. Settings are in `BepInEx/config/GrundleLord.Inferno.cfg` (created on first start). A fully commented
-   `sample-config.cfg` comes with the download.
+   `sample-config.cfg` comes with the download (also [on GitHub](https://github.com/krab7191/valheim_inferno_mod/blob/main/docs/sample-config.cfg)).
 
-Players don't install anything.
+Players don't install anything. A one-page [guide for players](https://github.com/krab7191/valheim_inferno_mod/blob/main/docs/tester-guide.md)
+(also console players) explains how to use Inferno with signs.
 
 ## Commands
 
@@ -64,7 +67,7 @@ server. Without Inferno it just lists world keys, so it is harmless.
 
 | Command | Example |
 |---------|---------|
-| `help` | `!fires help` |
+| `help [items\|presets\|admin]` | `!fires help`, `!fires help presets` |
 | `status` | `!fires status` (is Inferno running? versions, counts, in-game time) |
 | `list [all\|lights\|stations]` | `!fires list lights` |
 | `show <item>` | `!fires show hot tub` |
@@ -105,6 +108,15 @@ That's the same as doing it by hand (always on overrides the schedule, so it's s
 
 Changed your mind? `!fires undo`.
 
+**Only your base: `nearby`.** Add `nearby` after the item to change only the fires around you (chat, F5) or
+around the sign, e.g. `!fires preset night nearby` or `!fires burnrate torches nearby -5`.
+- Inside a **ward**, "nearby" means that ward's area, and only players with access to the ward (its builder and the
+  players they added) can change its fires: the same rule as building there.
+- Without a ward it means everything within **20 m**, and anyone may change it, as with building.
+- Those fires keep their **own settings** (saved with the fire, also after a restart); later changes to their item
+  type don't affect them. `!fires show nearby` lists them; `!fires reset nearby` makes them follow their item type
+  again.
+
 **Always on vs. burn rate and schedule:** while always on is on, burn rate and schedule have no effect. Setting a
 burn rate or a schedule window therefore switches always on off for those items (the reply tells you).
 Turning always on back on keeps your burn rate and schedule stored, so nothing is lost.
@@ -112,7 +124,8 @@ Turning always on back on keeps your burn rate and schedule stored, so nothing i
 ## Configuration
 
 Everything the commands change is stored in `BepInEx/config/GrundleLord.Inferno.cfg`, and edits to that file
-apply live. A fully commented `sample-config.cfg` comes with the download.
+apply live. A fully commented `sample-config.cfg` comes with the download (also
+[on GitHub](https://github.com/krab7191/valheim_inferno_mod/blob/main/docs/sample-config.cfg)).
 
 | Section | Setting | Default | Meaning |
 |---------|---------|---------|---------|
@@ -184,7 +197,7 @@ These come from how Valheim works and apply to any server-only mod:
    - every command, change and reply is logged;
    - errors are logged in full the first time and summarised if they repeat. Inferno skips the failing object
      and keeps running.
-3. When reporting a problem, include the startup diagnostics block and the first error.
+3. Report problems on [GitHub Issues](https://github.com/krab7191/valheim_inferno_mod/issues) and include the startup diagnostics block and the first error.
 
 ## Compatibility
 
@@ -213,8 +226,8 @@ dotnet build
 dotnet build -c Release
 ```
 
-Testing: [in-game checklist](docs/in-game-test-checklist.md) (server-only first) and a plain-language
-[tester guide](docs/tester-guide.md) for players without mods, including console players.
+Testing: [in-game checklist](https://github.com/krab7191/valheim_inferno_mod/blob/main/docs/in-game-test-checklist.md) (server-only first) and a plain-language
+[tester guide](https://github.com/krab7191/valheim_inferno_mod/blob/main/docs/tester-guide.md) for players without mods, including console players.
 
 Contributor and AI-agent guidelines are in [AGENTS.md](AGENTS.md); requirements and design decisions are in
 [RTM.md](RTM.md).

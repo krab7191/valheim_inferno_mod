@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using BepInEx.Logging;
+using Inferno.Core.Areas;
 using Inferno.Core.Commands;
 using Inferno.Core.Settings;
 using UnityEngine;
@@ -16,6 +17,9 @@ internal sealed class CommandService(CommandExecutor executor, ConfigSettingsSto
     // Shared by every source, keyed by platform id: a burst of 10, then one command per second.
     private readonly RateLimiter _limiter = new(burst: 10, refillPerSecond: 1.0);
     private SettingsSnapshot _snapshot = store.Snapshot();
+
+    /// <summary>Finds the fires around a spot for "nearby" commands (set once the scanner exists).</summary>
+    public Func<Vector3, long, NearbySelection>? FindNearby { get; set; }
 
     /// <summary>Raised after any setting changed (command, menu or config-file edit).</summary>
     public event Action? SettingsChanged;
@@ -38,7 +42,7 @@ internal sealed class CommandService(CommandExecutor executor, ConfigSettingsSto
             return;
         }
 
-        var reply = Run("menu", Players.FromPeer(peer), text, outcome, command, error, out var denied);
+        var reply = Run("menu", Players.FromPeer(peer), text, outcome, command, error, null, out var denied);
         Players.ShowMessage(peer, reply);
         if (denied || outcome == ParseOutcome.Invalid)
         {
@@ -68,7 +72,7 @@ internal sealed class CommandService(CommandExecutor executor, ConfigSettingsSto
             return true;
         }
 
-        var reply = Run("chat", Players.FromPeer(peer), text, outcome, command, error, out _);
+        var reply = Run("chat", Players.FromPeer(peer), text, outcome, command, error, NearbyOf(peer.m_refPos, peer.m_playerID), out _);
         Players.ShowMessage(peer, reply);
         return true;
     }
@@ -89,7 +93,7 @@ internal sealed class CommandService(CommandExecutor executor, ConfigSettingsSto
             return true;
         }
 
-        var reply = Run("console", Players.FromPeer(peer), text, outcome, command, error, out _);
+        var reply = Run("console", Players.FromPeer(peer), text, outcome, command, error, NearbyOf(peer.m_refPos, peer.m_playerID), out _);
         Players.ConsolePrint(rpc, reply);
         return true;
     }
@@ -122,7 +126,8 @@ internal sealed class CommandService(CommandExecutor executor, ConfigSettingsSto
             sender = new CommandSender(name, author, ZNet.instance.IsAdmin(author));
         }
 
-        var reply = Run("sign", sender, text, outcome, command, error, out _);
+        // "nearby" on a sign means around the sign; ward access is the writer's (unknown if they already left).
+        var reply = Run("sign", sender, text, outcome, command, error, NearbyOf(sign.GetPosition(), peer?.m_playerID ?? 0L), out _);
         if (peer is not null)
         {
             Players.ShowMessage(peer, reply);
@@ -151,7 +156,18 @@ internal sealed class CommandService(CommandExecutor executor, ConfigSettingsSto
         }
     }
 
-    private IReadOnlyList<string> Run(string source, CommandSender sender, string text, ParseOutcome outcome, ParsedCommand command, string error, out bool denied)
+    private Func<NearbySelection>? NearbyOf(Vector3 spot, long playerId) =>
+        FindNearby is { } find ? () => find(spot, playerId) : null;
+
+    private IReadOnlyList<string> Run(
+        string source,
+        CommandSender sender,
+        string text,
+        ParseOutcome outcome,
+        ParsedCommand command,
+        string error,
+        Func<NearbySelection>? nearby,
+        out bool denied)
     {
         denied = false;
         switch (_limiter.TryTake(sender.PlatformId, Time.realtimeSinceStartup))
@@ -174,7 +190,7 @@ internal sealed class CommandService(CommandExecutor executor, ConfigSettingsSto
         CommandResult result;
         try
         {
-            result = executor.Execute(command, sender);
+            result = executor.Execute(command, sender, nearby);
         }
         catch (Exception e)
         {

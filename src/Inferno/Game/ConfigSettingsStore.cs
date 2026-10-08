@@ -120,6 +120,18 @@ internal sealed class ConfigSettingsStore : ISettingsStore, IDisposable
         }
     }
 
+    /// <summary>A fire's own settings live in its world data (server only); see <see cref="ObjectSettings"/>.</summary>
+    public ItemSettings? GetObject(string objectKey) =>
+        ObjectSettings.TryParseKey(objectKey, out var id) && ZDOMan.instance?.GetZDO(id) is { } zdo ? ObjectSettings.Read(zdo) : null;
+
+    public void SetObject(string objectKey, ItemSettings? settings)
+    {
+        if (ObjectSettings.TryParseKey(objectKey, out var id) && ZDOMan.instance?.GetZDO(id) is { } zdo)
+        {
+            ObjectSettings.Write(zdo, settings);
+        }
+    }
+
     public SettingsSnapshot Snapshot()
     {
         var items = new Dictionary<string, ItemSettings>(StringComparer.OrdinalIgnoreCase);

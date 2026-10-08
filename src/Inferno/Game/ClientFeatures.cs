@@ -11,7 +11,7 @@ namespace Inferno.Game;
 /// </summary>
 internal static class ClientFeatures
 {
-    private static readonly Dictionary<int, string> PrefabBySpawner = [];
+    private static readonly Dictionary<int, ZNetView?> ViewBySpawner = [];
 
     /// <summary>Set by the plugin; null until loaded.</summary>
     public static ConfigSettingsStore? Store { get; set; }
@@ -33,7 +33,7 @@ internal static class ClientFeatures
 
         private static bool Prefix(SmokeSpawner __instance, float time)
         {
-            if (!Active || Store!.GetItem(PrefabOf(__instance)).Smoke)
+            if (!Active || SmokeWanted(__instance))
             {
                 return true;
             }
@@ -46,17 +46,22 @@ internal static class ClientFeatures
             return false;
         }
 
-        private static string PrefabOf(SmokeSpawner spawner)
+        // A fire's own settings (synced in its world data) win over its item type's.
+        private static bool SmokeWanted(SmokeSpawner spawner)
         {
             var id = spawner.GetInstanceID();
-            if (!PrefabBySpawner.TryGetValue(id, out var name))
+            if (!ViewBySpawner.TryGetValue(id, out var view))
             {
-                var view = spawner.GetComponentInParent<ZNetView>();
-                name = view != null ? Utils.GetPrefabName(view.gameObject) : string.Empty;
-                PrefabBySpawner[id] = name;
+                view = spawner.GetComponentInParent<ZNetView>();
+                ViewBySpawner[id] = view;
             }
 
-            return name;
+            if (view == null || !view.IsValid())
+            {
+                return true;
+            }
+
+            return ObjectSettings.Read(view.GetZDO())?.Smoke ?? Store!.GetItem(Utils.GetPrefabName(view.gameObject)).Smoke;
         }
     }
 

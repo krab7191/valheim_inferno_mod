@@ -59,6 +59,7 @@ public class CommandExecutorTests
         var result = Run("!fires help");
 
         Assert.Contains(result.Reply, l => l.StartsWith("schedule <item>", StringComparison.Ordinal));
+        Assert.InRange(result.Reply.Count, 1, 6);
         Assert.Empty(result.Changes);
         Assert.False(result.Denied);
     }
@@ -80,6 +81,22 @@ public class CommandExecutorTests
 
         Assert.False(Run("!fires status").Denied);
     }
+
+    [Theory]
+    [InlineData("items", "<item> can be:")]
+    [InlineData("PRESETS", "preset eternal [item] – always on (the default)")]
+    [InlineData("admin", "adminonly on|off – only admins may change settings")]
+    public void HelpTopics_FitOnScreen(string topic, string firstLine)
+    {
+        var result = Run($"!fires help {topic}");
+
+        Assert.Equal(firstLine, result.Reply[0]);
+        Assert.InRange(result.Reply.Count, 1, 6);
+    }
+
+    [Fact]
+    public void HelpTopic_Unknown_ListsTopics() =>
+        Assert.Equal(["No help topic 'cats'. Topics: items, presets, admin."], Run("!fires help cats").Reply);
 
     [Fact]
     public void List_All_DescribesEveryItemWithDefaults()
@@ -243,11 +260,14 @@ public class CommandExecutorTests
 
         var result = Run("!fires undo");
 
-        Assert.Equal(["Undone: AlwaysOn = on on 'hearth'."], result.Reply);
+        Assert.Equal(["Undone: AlwaysOn = on on 'hearth'. (1 more to undo)"], result.Reply);
         var change = Assert.Single(result.Changes);
         Assert.Equal("Undo", change.Setting);
         Assert.False(_store.GetItem("hearth").AlwaysOn);
         Assert.Equal(5, _store.GetItem("hearth").BurnRateLevel);
+
+        Assert.Equal(["Undone: BurnRate = 5 on 'hearth'."], Run("!fires undo").Reply);
+        Assert.Equal(ItemSettings.AlwaysOnDefault, _store.GetItem("hearth"));
         Assert.Equal(["Nothing to undo."], Run("!fires undo").Reply);
     }
 
@@ -268,6 +288,7 @@ public class CommandExecutorTests
         Run("!fires hidecommands off", Admin);
 
         var result = Run("!fires undo", Player);
+
 
         Assert.Equal(["Undone: IgnoreRain = on."], result.Reply);
         Assert.Equal("[General] IgnoreRain: on -> off", Assert.Single(result.Changes).ToString());
@@ -294,6 +315,24 @@ public class CommandExecutorTests
         Run("!fires smoke hearth on"); // already on: nothing changed
 
         Assert.Equal(["Undone: BurnRate = 5 on 'hearth'."], Run("!fires undo").Reply);
+    }
+
+    [Fact]
+    public void Undo_KeepsOnlyTheLastTenSteps()
+    {
+        // 12 changes: -10, -9, …, 1. Only the last 10 can be undone, back to the value after the 2nd change.
+        for (var level = -10; level < -10 + CommandExecutor.UndoDepth + 2; level++)
+        {
+            Run($"!fires burnrate hearth {level}");
+        }
+
+        for (var i = 0; i < CommandExecutor.UndoDepth; i++)
+        {
+            Run("!fires undo");
+        }
+
+        Assert.Equal(-9, _store.GetItem("hearth").BurnRateLevel);
+        Assert.Equal(["Nothing to undo."], Run("!fires undo").Reply);
     }
 
     [Fact]

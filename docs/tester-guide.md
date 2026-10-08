@@ -18,10 +18,11 @@ on-screen text? Open your inventory → **Compendium → Logs**. Items are named
 | Write this on a sign | What should happen |
 |----------------------|--------------------|
 | `!fires status` | Top left: "Inferno … running on Valheim …" and a few lines of numbers |
-| `!fires help` | Top left: a short list of commands |
+| `!fires help` | Top left: the main commands, one per line (more: `!fires help items`, `help presets`, `help admin`) |
 | `!fires show hot tub` | Top left: the hot tub's settings |
 | `!fires preset night torches` | Torches go out until dusk (18:00), then light without using fuel |
 | `!fires undo` | Puts back what your last command changed |
+| `!fires preset night nearby` | Only the lights in your ward's area (or within 20 m) switch to night mode |
 
 If **nothing** appears after 10 seconds, tell us: that's important.
 

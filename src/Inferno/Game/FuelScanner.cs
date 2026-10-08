@@ -1,11 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using BepInEx.Logging;
 using HarmonyLib;
+using Inferno.Core.Areas;
 using Inferno.Core.Catalog;
+using Inferno.Core.Diagnostics;
 using Inferno.Core.Fuel;
 using Inferno.Core.Settings;
 using Inferno.Core.Time;
+using UnityEngine;
 
 namespace Inferno.Game;
 
@@ -37,7 +41,17 @@ internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsSto
     // Objects seen arriving from players (new fires, edited signs) since the current sweep started.
     private readonly HashSet<ZDOID> _fuelSet = [];
     private readonly HashSet<ZDOID> _signSet = [];
+    private readonly HashSet<ZDOID> _wardSet = [];
+    private readonly List<ZDOID> _sweepWards = [];
     private readonly List<ZDOID> _arrivedSinceSweep = [];
+
+    // Performance: logged every StatsIntervalSeconds so big worlds can be judged from the server log.
+    private const float StatsIntervalSeconds = 600f;
+    private readonly RunningStats _passStats = new();
+    private readonly RunningStats _sweepStats = new();
+    private readonly System.Diagnostics.Stopwatch _sweepWatch = new();
+    private int _writesSinceStats;
+    private float _nextStats = StatsIntervalSeconds;
     private List<ZDOID> _fuel = [];
     private List<ZDOID> _signs = [];
     private int _sweepIndex = -1;
@@ -52,12 +66,18 @@ internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsSto
         {
             var owned = 0;
             var unattended = 0;
+            var own = 0;
             foreach (var id in _fuel)
             {
                 var zdo = ZDOMan.instance?.GetZDO(id);
                 if (zdo is null)
                 {
                     continue;
+                }
+
+                if (ObjectSettings.Read(zdo) is not null)
+                {
+                    own++;
                 }
 
                 if (ServerOwnership.IsServerSimulated(zdo))
@@ -70,7 +90,7 @@ internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsSto
                 }
             }
 
-            return $"Tracking {_fuel.Count} fuel object(s): {unattended} with nobody nearby, {owned} handled by the server; {_signs.Count} sign(s).";
+            return $"Tracking {_fuel.Count} fuel object(s): {unattended} with nobody nearby, {owned} handled by the server, {own} with own settings; {_signs.Count} sign(s), {_wardSet.Count} ward(s).";
         }
     }
 
@@ -103,6 +123,61 @@ internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsSto
 
             ApplySoon();
         }
+        else if (discovery.WardRadii.ContainsKey(prefab))
+        {
+            _wardSet.Add(zdo.m_uid);
+        }
+    }
+
+    /// <summary>All wards in the world, as the server's data describes them.</summary>
+    public List<Ward> Wards()
+    {
+        var wards = new List<Ward>(_wardSet.Count);
+        foreach (var id in _wardSet)
+        {
+            var zdo = ZDOMan.instance?.GetZDO(id);
+            if (zdo is null || !discovery.WardRadii.TryGetValue(zdo.GetPrefab(), out var radius))
+            {
+                continue;
+            }
+
+            // Same data PrivateArea reads: enabled flag, builder, and the permitted list (count + pu_id0..n).
+            var permitted = new List<long>();
+            var count = zdo.GetInt(ZDOVars.s_permitted);
+            for (var i = 0; i < count; i++)
+            {
+                permitted.Add(zdo.GetLong("pu_id" + i.ToString(CultureInfo.InvariantCulture)));
+            }
+
+            var position = zdo.GetPosition();
+            wards.Add(new Ward(position.x, position.z, radius, zdo.GetBool(ZDOVars.s_enabled), zdo.GetLong(ZDOVars.s_creator), permitted));
+        }
+
+        return wards;
+    }
+
+    /// <summary>The fires around a spot for a "nearby" command, with the player's ward access to each.</summary>
+    public NearbySelection Nearby(Vector3 spot, long playerId)
+    {
+        var wards = Wards();
+        var area = NearbyArea.Around(wards, spot.x, spot.z);
+        var objects = new List<NearbyObject>();
+        foreach (var id in _fuel)
+        {
+            var zdo = ZDOMan.instance?.GetZDO(id);
+            if (zdo is null || !discovery.ByHash.TryGetValue(zdo.GetPrefab(), out var item))
+            {
+                continue;
+            }
+
+            var position = zdo.GetPosition();
+            if (area.Contains(position.x, position.z))
+            {
+                objects.Add(new NearbyObject(ObjectSettings.KeyOf(id), item.PrefabName, NearbyArea.CanAccess(wards, position.x, position.z, playerId)));
+            }
+        }
+
+        return new NearbySelection(objects, area.Description);
     }
 
     /// <summary>Call every frame.</summary>
@@ -127,8 +202,19 @@ internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsSto
         if (now >= _nextApply)
         {
             _nextApply = now + ApplyIntervalSeconds;
+            var watch = System.Diagnostics.Stopwatch.StartNew();
             ApplySettings(now);
             HandleSigns();
+            _passStats.Add(watch.Elapsed.TotalMilliseconds);
+        }
+
+        if (now >= _nextStats)
+        {
+            _nextStats = now + StatsIntervalSeconds;
+            log.LogInfo($"Performance (last {StatsIntervalSeconds / 60:0} min): {StatusText} Passes: {_passStats}. Sweeps: {_sweepStats}. Writes: {_writesSinceStats}. Errors since start: {Diagnostics.ErrorCount}.");
+            _passStats.Reset();
+            _sweepStats.Reset();
+            _writesSinceStats = 0;
         }
     }
 
@@ -190,12 +276,14 @@ internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsSto
         _sweepBuffer.AddRange(ObjectsById(ZDOMan.instance).Values);
         _sweepFuel.Clear();
         _sweepSigns.Clear();
+        _sweepWards.Clear();
         _arrivedSinceSweep.Clear();
         _sweepIndex = 0;
     }
 
     private void ContinueSweep(float now)
     {
+        _sweepWatch.Start();
         var end = Math.Min(_sweepIndex + SweepChunkSize, _sweepBuffer.Count);
         for (; _sweepIndex < end; _sweepIndex++)
         {
@@ -216,6 +304,10 @@ internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsSto
                 {
                     _sweepSigns.Add(zdo.m_uid);
                 }
+                else if (discovery.WardRadii.ContainsKey(prefab))
+                {
+                    _sweepWards.Add(zdo.m_uid);
+                }
             }
             catch (Exception e)
             {
@@ -223,10 +315,15 @@ internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsSto
             }
         }
 
+        _sweepWatch.Stop();
         if (_sweepIndex < _sweepBuffer.Count)
         {
             return;
         }
+
+        // One sweep spans several frames; record the total time it spent.
+        _sweepStats.Add(_sweepWatch.Elapsed.TotalMilliseconds);
+        _sweepWatch.Reset();
 
         // Swap in the new lists (plus anything that arrived during the sweep); drop baselines of objects that no
         // longer exist.
@@ -234,6 +331,10 @@ internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsSto
         _signSet.Clear();
         _fuelSet.UnionWith(_sweepFuel);
         _signSet.UnionWith(_sweepSigns);
+
+        // Wards placed during the sweep stay known (Notice adds them); removed ones drop out here.
+        _wardSet.RemoveWhere(id => ZDOMan.instance?.GetZDO(id) is null);
+        _wardSet.UnionWith(_sweepWards);
         foreach (var id in _arrivedSinceSweep)
         {
             var zdo = ZDOMan.instance?.GetZDO(id);
@@ -294,7 +395,9 @@ internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsSto
             {
                 ownership.Manage(zdo, realNow);
                 float? baseline = _baselines.TryGetValue(id, out var b) ? b : null;
-                if (!_settingsCache.TryGetValue(item.PrefabName, out var settings))
+                // A fire's own settings ("nearby" commands) win over its item type's.
+                var settings = ObjectSettings.Read(zdo);
+                if (settings is null && !_settingsCache.TryGetValue(item.PrefabName, out settings))
                 {
                     settings = store.GetItem(item.PrefabName);
                     _settingsCache[item.PrefabName] = settings;
@@ -306,6 +409,7 @@ internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsSto
                 {
                     Apply(zdo, decision);
                     writes++;
+                    _writesSinceStats++;
                 }
             }
             catch (Exception e)

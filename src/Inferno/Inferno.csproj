@@ -61,6 +61,7 @@
     <ThunderstoreTeam>GrundleLord</ThunderstoreTeam>
     <ThunderstoreDescription>Server-side fire control: torches, fires, hearths and hot tubs stay lit with no refuelling, plus burn rate and day/night schedules. Players install nothing, so it works with crossplay (Xbox, PlayStation).</ThunderstoreDescription>
     <ThunderstoreDependency>denikson-BepInExPack_Valheim-5.4.2351</ThunderstoreDependency>
+    <ThunderstoreWebsite>https://github.com/krab7191/valheim_inferno_mod</ThunderstoreWebsite>
   </PropertyGroup>
 
   <!-- Thunderstore rejects files with a UTF-8 byte-order mark; WriteLinesToFile always adds one. -->
@@ -87,7 +88,7 @@
       <TsManifest>{
   "name": "Inferno",
   "version_number": "$(Version)",
-  "website_url": "",
+  "website_url": "$(ThunderstoreWebsite)",
   "description": "$(ThunderstoreDescription)",
   "dependencies": [ "$(ThunderstoreDependency)" ]
 }</TsManifest>

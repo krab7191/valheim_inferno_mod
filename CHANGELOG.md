@@ -5,6 +5,27 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-07
+
+### Added
+- **Per-base control with `nearby`**: add `nearby` to an item command to change only the fires around you or the
+  sign, e.g. `!fires preset night nearby` or `!fires burnrate torches nearby -5`. Inside a ward, "nearby" means that
+  ward's area and only players with access to the ward can change its fires (same rule as building); without a
+  ward it means everything within 20 m. Those fires keep their own settings (saved with the fire, also after a
+  restart); `!fires reset nearby` makes them follow their item type again; `!fires show nearby` lists them.
+- Wrong word order gets a suggestion: `!fires all preset eternal` → "Did you mean: !fires preset eternal all".
+- `!fires undo` steps back through your last 10 changes (was 1).
+- Performance line in the server log every 10 minutes (objects tracked, time per pass and sweep, writes, errors).
+- `!fires status` also counts fires with their own settings and wards.
+- Link to the GitHub repository on the mod page; README links to the tester guide and sample config work on
+  Thunderstore.
+
+## [0.2.2] - 2026-10-07
+
+### Changed
+- Help is easier to read on screen and in the message log: one command per line with a short description, and
+  topic pages `!fires help items`, `!fires help presets`, `!fires help admin` (each fits on screen).
+
 ## [0.2.1] - 2026-10-07
 
 ### Changed

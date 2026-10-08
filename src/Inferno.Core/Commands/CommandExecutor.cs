@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using Inferno.Core.Areas;
 using Inferno.Core.Catalog;
 using Inferno.Core.Permissions;
 using Inferno.Core.Settings;
@@ -14,23 +15,60 @@ public sealed class CommandExecutor
     /// <summary>Config section name of the server-wide settings.</summary>
     public const string GeneralSection = "General";
 
+    /// <summary>How many of their own changes a player can step back through with <c>undo</c>.</summary>
+    public const int UndoDepth = 10;
+
     // Names listed in a reply before "+N more".
     private const int MaxNamesInReply = 4;
 
+    // Help pages: one command per line with a plain description, at most 6 lines each so a page fits the
+    // top-left message and reads cleanly in the game's message log (Compendium → Message log).
     private static readonly string[] HelpLines =
     [
-        "Inferno: type '!fires <command>' in chat or on a sign, or 'listkeys fires <command>' in the F5 console.",
-        "<item> = name as in game (hot tub, standing wood torch), a word (torches, braziers, fires), or all / lights / stations.",
-        "preset eternal|night|vanilla [item]  ·  undo  ·  status  ·  list  ·  show <item>  ·  reset <item>",
-        "alwayson <item> on|off  ·  burnrate <item> <-10..10> (0 = vanilla, 10 % per step)",
-        "schedule <item> night|day|off  or  schedule <item> <on HH:MM> <off HH:MM>",
-        "smoke <item> on|off (client mod only)  ·  adminonly / hidecommands / ignorerain / serverownership on|off",
+        "Inferno: write !fires <command> on a sign or in chat.",
+        "alwayson <item> on|off – never needs fuel",
+        "burnrate <item> -10..10 – fuel use, 0 = normal",
+        "schedule <item> night|day|off – when it's lit",
+        "preset night|eternal|vanilla – one-step setups",
+        "More: help items · help presets · help admin · status",
     ];
+
+    private static readonly Dictionary<string, string[]> HelpTopics = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["items"] =
+        [
+            "<item> can be:",
+            "a name as in game – hot tub, standing wood torch",
+            "a word – torches, braziers, fires, lanterns",
+            "a group – lights, stations, all",
+            "show <item> – its settings · list – everything",
+            "add 'nearby' – only fires in your ward / within 20 m",
+        ],
+        ["presets"] =
+        [
+            "preset eternal [item] – always on (the default)",
+            "preset night [item] – lit 18:00-06:00, no fuel used",
+            "preset vanilla [item] – normal game behaviour",
+            "schedule <item> 18:00 19:00 – your own times",
+            "undo – take back your last change",
+            "reset <item> – back to defaults",
+        ],
+        ["admin"] =
+        [
+            "adminonly on|off – only admins may change settings",
+            "hidecommands on|off – hide !fires lines in chat",
+            "ignorerain on|off – relight lights after rain",
+            "serverownership on|off – experimental, see readme",
+            "smoke <item> on|off – client mod players only",
+            "F5 console: listkeys fires <command>",
+        ],
+    };
 
     private readonly ItemCatalog _catalog;
     private readonly ISettingsStore _store;
     private readonly Func<IReadOnlyList<string>> _status;
-    private readonly Dictionary<string, UndoEntry> _undo = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<UndoEntry>> _undo = new(StringComparer.Ordinal);
+    private Func<NearbySelection>? _nearby;
 
     /// <summary>Creates an executor.</summary>
     /// <param name="catalog">All known items.</param>
@@ -44,10 +82,20 @@ public sealed class CommandExecutor
         _status = status ?? (() => ["Inferno is running."]);
     }
 
+    /// <summary>Word that limits a command to the fires around the player or sign (e.g. "torches nearby").</summary>
+    public const string NearbyWord = "nearby";
+
     /// <summary>Runs a command for a player.</summary>
-    /// <exception cref="ArgumentNullException">An argument is null.</exception>
-    public CommandResult Execute(ParsedCommand command, CommandSender sender)
+    /// <param name="command">The parsed command.</param>
+    /// <param name="sender">Who sent it.</param>
+    /// <param name="nearby">
+    /// Finds the objects around the sign or player, for commands with "nearby"; null where there is no location
+    /// (e.g. the settings menu).
+    /// </param>
+    /// <exception cref="ArgumentNullException"><paramref name="command"/> or <paramref name="sender"/> is null.</exception>
+    public CommandResult Execute(ParsedCommand command, CommandSender sender, Func<NearbySelection>? nearby = null)
     {
+        _nearby = nearby;
         if (command is null)
         {
             throw new ArgumentNullException(nameof(command));
@@ -61,12 +109,12 @@ public sealed class CommandExecutor
         switch (command.Kind)
         {
             case CommandKind.Help:
-                return Ok(HelpLines);
+                return Help(command.Name);
             case CommandKind.Status:
                 return Ok(_status());
             case CommandKind.List:
             case CommandKind.Show:
-                return Show(command.Target!);
+                return TrySplitNearby(command.Target!, out var showFilter) ? ShowNearby(showFilter) : Show(command.Target!);
         }
 
         if (!PermissionPolicy.CanChangeSettings(sender.IsAdmin, _store.General.AdminOnly))
@@ -87,7 +135,9 @@ public sealed class CommandExecutor
                 "Schedule",
                 command.Schedule.ToString(),
                 (i, s) => !i.CanSchedule ? null : command.Schedule.IsAlwaysOn ? s.WithSchedule(command.Schedule) : s.WithSchedule(command.Schedule).WithAlwaysOn(false)),
-            CommandKind.Reset => UpdateItems(sender, command.Target!, "Settings", "defaults", (i, _) => ItemSettings.DefaultFor(i.Kind)),
+            CommandKind.Reset => TrySplitNearby(command.Target!, out var resetFilter)
+                ? UpdateObjects(sender, resetFilter, "Settings", "item type's", null)
+                : UpdateItems(sender, command.Target!, "Settings", "defaults", (i, _) => ItemSettings.DefaultFor(i.Kind)),
             CommandKind.Preset => ApplyPreset(sender, command),
             CommandKind.Undo => Undo(sender),
             CommandKind.AdminOnly => UpdateGeneral(sender, "AdminOnly", g => g.AdminOnly, (g, v) => g.WithAdminOnly(v), command.Flag),
@@ -109,6 +159,18 @@ public sealed class CommandExecutor
         var kind = item.Kind == ItemKind.LightSource ? "light" : "station";
         var schedule = item.CanSchedule ? s.Schedule.ToString() : "n/a";
         return $"{item.DisplayName} ({item.PrefabName}, {kind}): alwayson={OnOff(s.AlwaysOn)} burnrate={Number(s.BurnRateLevel)} schedule={schedule} smoke={OnOff(s.Smoke)}";
+    }
+
+    private static CommandResult Help(string? topic)
+    {
+        if (topic is null)
+        {
+            return Ok(HelpLines);
+        }
+
+        return HelpTopics.TryGetValue(topic, out var lines)
+            ? Ok(lines)
+            : Ok([$"No help topic '{topic}'. Topics: items, presets, admin."]);
     }
 
     private CommandResult Show(string target)
@@ -145,6 +207,11 @@ public sealed class CommandExecutor
         string newValueText,
         Func<CatalogItem, ItemSettings, ItemSettings?> update)
     {
+        if (TrySplitNearby(target, out var filter))
+        {
+            return UpdateObjects(sender, filter, settingName, newValueText, update);
+        }
+
         if (!TryResolve(target, out var items, out var error))
         {
             return Ok([error]);
@@ -202,7 +269,7 @@ public sealed class CommandExecutor
 
         if (changes.Count > 0)
         {
-            _undo[sender.PlatformId] = UndoEntry.ForItems($"{settingName} = {newValueText} on '{target}'", undo);
+            Remember(sender, UndoEntry.ForItems($"{settingName} = {newValueText} on '{target}'", undo));
         }
 
         return new CommandResult(reply, changes, denied: false);
@@ -222,20 +289,21 @@ public sealed class CommandExecutor
         }
 
         _store.General = write(before, newValue);
-        _undo[sender.PlatformId] = UndoEntry.ForGeneral($"{settingName} = {OnOff(newValue)}", settingName, write, !newValue);
+        Remember(sender, UndoEntry.ForGeneral($"{settingName} = {OnOff(newValue)}", settingName, write, !newValue));
         var change = new SettingChange(GeneralSection, settingName, OnOff(!newValue), OnOff(newValue));
         return new CommandResult([$"{settingName} = {OnOff(newValue)}."], [change], denied: false);
     }
 
-    // One step back, per player: their own most recent change (not other players').
+    // Per player: steps back through their own recent changes (not other players'), newest first.
     private CommandResult Undo(CommandSender sender)
     {
-        if (!_undo.TryGetValue(sender.PlatformId, out var entry))
+        if (!_undo.TryGetValue(sender.PlatformId, out var history) || history.Count == 0)
         {
             return Ok(["Nothing to undo."]);
         }
 
-        _undo.Remove(sender.PlatformId);
+        var entry = history[history.Count - 1];
+        history.RemoveAt(history.Count - 1);
         var changes = new List<SettingChange>();
         if (entry.GeneralSetting is { } setting)
         {
@@ -254,7 +322,209 @@ public sealed class CommandExecutor
             }
         }
 
-        return new CommandResult([$"Undone: {entry.Description}."], changes, denied: false);
+        foreach (var obj in entry.Objects)
+        {
+            var current = _store.GetObject(obj.Key);
+            if (!Equals(current, obj.Value))
+            {
+                _store.SetObject(obj.Key, obj.Value);
+                changes.Add(new SettingChange(obj.Key, "Undo", OwnText(current), OwnText(obj.Value)));
+            }
+        }
+
+        var left = history.Count == 0 ? string.Empty : $" ({history.Count} more to undo)";
+        return new CommandResult([$"Undone: {entry.Description}.{left}"], changes, denied: false);
+    }
+
+    private void Remember(CommandSender sender, UndoEntry entry)
+    {
+        if (!_undo.TryGetValue(sender.PlatformId, out var history))
+        {
+            history = [];
+            _undo[sender.PlatformId] = history;
+        }
+
+        history.Add(entry);
+        if (history.Count > UndoDepth)
+        {
+            history.RemoveAt(0);
+        }
+    }
+
+    // "nearby" or "<item> nearby": the command applies to the objects around the sign or player only.
+    private static bool TrySplitNearby(string target, out string? filter)
+    {
+        var trimmed = target.Trim();
+        filter = null;
+        if (string.Equals(trimmed, NearbyWord, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (trimmed.EndsWith(" " + NearbyWord, StringComparison.OrdinalIgnoreCase))
+        {
+            filter = trimmed.Substring(0, trimmed.Length - NearbyWord.Length - 1).Trim();
+            return true;
+        }
+
+        return false;
+    }
+
+    // The objects a "nearby" command applies to, or an error line for the reply.
+    private bool TrySelectNearby(string? filter, out List<(NearbyObject Object, CatalogItem Item)> selected, out string area, out string error)
+    {
+        selected = [];
+        area = string.Empty;
+        error = string.Empty;
+        if (_nearby is null)
+        {
+            error = "'nearby' only works on a sign, in chat or in the F5 console.";
+            return false;
+        }
+
+        HashSet<string>? wanted = null;
+        if (filter is not null)
+        {
+            if (!TryResolve(filter, out var items, out error))
+            {
+                return false;
+            }
+
+            wanted = new HashSet<string>(items.Select(i => i.PrefabName), StringComparer.OrdinalIgnoreCase);
+        }
+
+        var selection = _nearby();
+        area = selection.AreaDescription;
+        foreach (var obj in selection.Objects)
+        {
+            if ((wanted is null || wanted.Contains(obj.PrefabName)) && _catalog.TryGet(obj.PrefabName, out var item))
+            {
+                selected.Add((obj, item));
+            }
+        }
+
+        if (selected.Count == 0)
+        {
+            error = $"No {(filter is null ? "fires" : $"'{filter}'")} {area}.";
+            return false;
+        }
+
+        return true;
+    }
+
+    // Changes the objects' own settings. update == null resets them to follow their item type again.
+    private CommandResult UpdateObjects(
+        CommandSender sender,
+        string? filter,
+        string settingName,
+        string newValueText,
+        Func<CatalogItem, ItemSettings, ItemSettings?>? update)
+    {
+        if (!TrySelectNearby(filter, out var selected, out var area, out var error))
+        {
+            return Ok([error]);
+        }
+
+        var changes = new List<SettingChange>();
+        var undo = new List<KeyValuePair<string, ItemSettings?>>();
+        var noAccess = 0;
+        var skipped = 0;
+        var alwaysOnSwitchedOff = 0;
+        foreach (var (obj, item) in selected)
+        {
+            if (!obj.Allowed)
+            {
+                noAccess++;
+                continue;
+            }
+
+            var own = _store.GetObject(obj.Key);
+            var before = own ?? _store.GetItem(item.PrefabName);
+            ItemSettings? after;
+            if (update is null)
+            {
+                if (own is null)
+                {
+                    continue;
+                }
+
+                after = null;
+            }
+            else
+            {
+                after = update(item, before);
+                if (after is null)
+                {
+                    skipped++;
+                    continue;
+                }
+
+                if (after.Equals(before))
+                {
+                    continue;
+                }
+
+                if (before.AlwaysOn && !after.AlwaysOn && settingName != "AlwaysOn" && settingName != "Preset")
+                {
+                    alwaysOnSwitchedOff++;
+                }
+            }
+
+            _store.SetObject(obj.Key, after);
+            undo.Add(new KeyValuePair<string, ItemSettings?>(obj.Key, own));
+            changes.Add(new SettingChange($"{item.PrefabName} {obj.Key}", settingName, OwnText(own), OwnText(after)));
+        }
+
+        var reply = new List<string>
+        {
+            update is null
+                ? $"{changes.Count} of {selected.Count} fire(s) {area} back to their item type's settings."
+                : $"{settingName} = {newValueText}: {changes.Count} of {selected.Count} fire(s) {area} changed.",
+        };
+        if (alwaysOnSwitchedOff > 0)
+        {
+            reply.Add($"AlwaysOn turned off for {alwaysOnSwitchedOff} of them so this takes effect.");
+        }
+
+        if (noAccess > 0)
+        {
+            reply.Add($"{noAccess} skipped: they're in a ward you have no access to.");
+        }
+
+        if (skipped > 0)
+        {
+            reply.Add($"{skipped} skipped: no on/off switch, so no schedule.");
+        }
+
+        if (changes.Count > 0)
+        {
+            Remember(sender, UndoEntry.ForObjects($"{settingName} = {newValueText} on '{(filter is null ? NearbyWord : filter + " " + NearbyWord)}'", undo));
+        }
+
+        return new CommandResult(reply, changes, denied: false);
+    }
+
+    // One line per item type with the fires' settings; fires with their own settings are marked.
+    private CommandResult ShowNearby(string? filter)
+    {
+        if (!TrySelectNearby(filter, out var selected, out var area, out var error))
+        {
+            return Ok([error]);
+        }
+
+        var lines = new List<string> { $"{selected.Count} fire(s) {area}:" };
+        var groups = selected
+            .Select(s => (s.Item, Own: _store.GetObject(s.Object.Key)))
+            .Select(s => (s.Item, Settings: s.Own ?? _store.GetItem(s.Item.PrefabName), IsOwn: s.Own is not null))
+            .GroupBy(s => (s.Item.DisplayName, Text: s.Settings.ToString(), s.IsOwn))
+            .OrderBy(g => g.Key.DisplayName, StringComparer.OrdinalIgnoreCase);
+        foreach (var group in groups)
+        {
+            var own = group.Key.IsOwn ? " (own settings)" : string.Empty;
+            lines.Add($"{group.Key.DisplayName} x{group.Count()}{own}: {group.Key.Text}");
+        }
+
+        return Ok(lines);
     }
 
     private bool TryResolve(string target, out IReadOnlyList<CatalogItem> items, out string error)
@@ -290,6 +560,9 @@ public sealed class CommandExecutor
         return distinct.Count > MaxNamesInReply ? $"{shown}, +{distinct.Count - MaxNamesInReply} more" : shown;
     }
 
+    // An object's own settings, or that it has none.
+    private static string OwnText(ItemSettings? settings) => settings is null ? "follows item type" : settings.ToString();
+
     private static CommandResult Ok(IReadOnlyList<string> reply) => new(reply, [], denied: false);
 
     private static string OnOff(bool value) => value ? "on" : "off";
@@ -298,15 +571,22 @@ public sealed class CommandExecutor
 
     private sealed class UndoEntry
     {
-        private UndoEntry(string description, IReadOnlyList<KeyValuePair<string, ItemSettings>> items)
+        private UndoEntry(
+            string description,
+            IReadOnlyList<KeyValuePair<string, ItemSettings>> items,
+            IReadOnlyList<KeyValuePair<string, ItemSettings?>> objects)
         {
             Description = description;
             Items = items;
+            Objects = objects;
         }
 
         public string Description { get; }
 
         public IReadOnlyList<KeyValuePair<string, ItemSettings>> Items { get; }
+
+        // Objects' own settings before the change (null = it followed its item type).
+        public IReadOnlyList<KeyValuePair<string, ItemSettings?>> Objects { get; }
 
         public string? GeneralSetting { get; private set; }
 
@@ -315,10 +595,13 @@ public sealed class CommandExecutor
         public bool GeneralValue { get; private set; }
 
         public static UndoEntry ForItems(string description, IReadOnlyList<KeyValuePair<string, ItemSettings>> before) =>
-            new(description, before);
+            new(description, before, []);
+
+        public static UndoEntry ForObjects(string description, IReadOnlyList<KeyValuePair<string, ItemSettings?>> before) =>
+            new(description, [], before);
 
         // Only the one setting is restored, so other players' later changes to other settings survive.
         public static UndoEntry ForGeneral(string description, string setting, Func<GeneralSettings, bool, GeneralSettings> write, bool before) =>
-            new(description, []) { GeneralSetting = setting, WriteGeneral = write, GeneralValue = before };
+            new(description, [], []) { GeneralSetting = setting, WriteGeneral = write, GeneralValue = before };
     }
 }

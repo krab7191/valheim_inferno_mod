@@ -102,6 +102,9 @@ public static class CommandParser
             case "HELP" when t.Length == 2:
                 return new ParsedCommand(CommandKind.Help);
 
+            case "HELP" when t.Length == 3:
+                return new ParsedCommand(CommandKind.Help, name: t[2]);
+
             case "STATUS" when t.Length == 2:
                 return new ParsedCommand(CommandKind.Status);
 
@@ -156,13 +159,50 @@ public static class CommandParser
         }
 
         error = UsageFor(t[1], prefix);
+        if (!IsSubcommand(t[1]) && SuggestOrder(t, prefix) is { } suggestion)
+        {
+            error = $"Did you mean: {suggestion}";
+        }
+
+        return null;
+    }
+
+    private static readonly string[] Subcommands =
+    [
+        "HELP", "STATUS", "LIST", "SHOW", "RESET", "ALWAYSON", "SMOKE", "BURNRATE", "SCHEDULE", "PRESET", "UNDO",
+        "ADMINONLY", "HIDECOMMANDS", "IGNORERAIN", "SERVEROWNERSHIP",
+    ];
+
+    private static bool IsSubcommand(string word) => Array.IndexOf(Subcommands, word.ToUpperInvariant()) >= 0;
+
+    // "!fires all preset eternal" → "!fires preset eternal all"; "!fires torches burnrate 5" → "!fires burnrate
+    // torches 5". The command word moves to the front: for presets the name follows it, for everything else the
+    // words before it are the item. Only suggested if the result is a valid command; never run automatically.
+    private static string? SuggestOrder(string[] t, string prefix)
+    {
+        for (var i = 2; i < t.Length; i++)
+        {
+            if (!IsSubcommand(t[i]))
+            {
+                continue;
+            }
+
+            var before = t.Skip(1).Take(i - 1).ToList();
+            var after = t.Skip(i + 1).ToList();
+            var reordered = string.Equals(t[i], "preset", StringComparison.OrdinalIgnoreCase) && after.Count > 0
+                ? new[] { t[i], after[0] }.Concat(before).Concat(after.Skip(1))
+                : new[] { t[i] }.Concat(before).Concat(after);
+            var candidate = prefix + " " + string.Join(" ", reordered);
+            return Parse(candidate, out _, out _) == ParseOutcome.Command ? candidate : null;
+        }
+
         return null;
     }
 
     /// <summary>One-line usage for a sub-command, or a pointer to help for unknown ones.</summary>
     internal static string UsageFor(string subcommand, string prefix) => subcommand.ToUpperInvariant() switch
     {
-        "HELP" => $"Usage: {prefix} help",
+        "HELP" => $"Usage: {prefix} help [items|presets|admin]",
         "STATUS" => $"Usage: {prefix} status",
         "SHOW" => $"Usage: {prefix} show <item>   (item = name as in game, e.g. hot tub; or all, lights, stations)",
         "RESET" => $"Usage: {prefix} reset <item>",

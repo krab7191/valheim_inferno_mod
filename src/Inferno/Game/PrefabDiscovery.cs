@@ -41,6 +41,9 @@ internal static class PrefabDiscovery
 
         /// <summary>Prefab hashes of all signs, for sign commands.</summary>
         public HashSet<int> SignHashes { get; } = signHashes;
+
+        /// <summary>Ward prefabs (guard stones) by hash, with their protection radius.</summary>
+        public Dictionary<int, float> WardRadii { get; } = [];
     }
 
     public static Result Run(ZNetScene scene, ManualLogSource log, bool verbose = true)
@@ -97,9 +100,19 @@ internal static class PrefabDiscovery
         }
 
         var catalog = new ItemCatalog(items);
+        var result = new Result(catalog, byHash, signs, ownershipCandidates);
+        foreach (var prefab in scene.m_prefabs)
+        {
+            var ward = prefab == null ? null : prefab.GetComponent<PrivateArea>();
+            if (ward != null)
+            {
+                result.WardRadii[prefab!.name.GetStableHashCode()] = ward.m_radius;
+            }
+        }
+
         if (!verbose)
         {
-            return new Result(catalog, byHash, signs, ownershipCandidates);
+            return result;
         }
 
         foreach (var item in catalog.Items)
@@ -114,7 +127,8 @@ internal static class PrefabDiscovery
         log.LogInfo($"Server ownership mode can manage {ownershipCandidates.Count} fire type(s)."
             + (ownershipConditional.Count == 0 ? string.Empty : $" Except where their extras apply (MeltsSnow: Deep North; SpreadsFire: Ashlands or fire modifier): {string.Join(", ", ownershipConditional)}.")
             + (ownershipExcluded.Count == 0 ? string.Empty : $" Never (other owner-run parts): {string.Join(", ", ownershipExcluded)}."));
-        return new Result(catalog, byHash, signs, ownershipCandidates);
+        log.LogInfo($"Ward types for 'nearby': {result.WardRadii.Count}.");
+        return result;
     }
 
     private static CatalogItem? TryCreateItem(GameObject prefab, ManualLogSource log)
