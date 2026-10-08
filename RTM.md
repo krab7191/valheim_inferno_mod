@@ -47,6 +47,7 @@ mod (phase 2) adds an in-game settings tab and client-only features.
 | R-26 | `!fires undo`: reverts the player's own last change (one step, per player, lost on restart); a general-setting undo restores only that setting | Yes | 0.2.0 | IMPL (design by Claude, owner to review) | — | `CommandExecutorTests`, C-17 |
 | R-27 | Setting a burn rate or schedule window switches AlwaysOn off (reply says so); turning AlwaysOn on keeps burn rate and schedule stored; `schedule … off` leaves AlwaysOn alone; menu sends AlwaysOn last | Yes | 0.2.1 | IMPL | — | `CommandExecutorTests`, `SyncTests` |
 | R-28 | Per-base control: `nearby` (alone or after an item) limits a command to the fires around the sign/player. Inside a ward = the ward's area, ward access required (vanilla `PrivateArea.CheckAccess` rule); no ward = 20 m, anyone. Changed fires keep own settings in their ZDO (`Inferno_*` keys), which win over item-type settings; `reset nearby` clears them; undo supported | Yes | 0.3.0 | IMPL | — | `AreasTests`, `NearbyCommandTests`, N-01–N-06 |
+| R-31 | `nearby <metres>` (1–100): plain circle around the sign/player, ignoring ward areas; ward permission still per fire. Promised in the owner Q&A on B-08 but missing from 0.3.0 | Yes | 0.3.1 | IMPL | — | `NearbyCommandTests`, `AreasTests`, N-07 |
 | R-29 | Performance line in the log every 10 min (tracked objects, pass/sweep timings, writes, errors) | Yes | 0.3.0 | IMPL | — | `RunningStatsTests`, P-01 |
 | R-30 | Wrong word order → "Did you mean …" suggestion (never run automatically); undo depth 10 per player | Yes | 0.3.0 | IMPL | — | `CommandParserTests`, `CommandExecutorTests` |
 | R-16 | Uninstall leaves no fire dark: scheduled-off lights are switched back on before the final save on shutdown; fuel is left as is | Yes (normal shutdown only) | 1 | IMPL | §4.11 | `FuelControllerTests`, S-06 |
@@ -378,6 +379,7 @@ Known caveat (dev only): config values saved by a build that classified an item 
 | 2026-10-07 | Crossplay works with BepInEx (confirmed by owner) | Owner |
 | 2026-10-07 | In-game (local server, vanilla client): always-on, schedule (incl. midnight), fuel kept while off, clock vs. sun, sign commands, status, in-game names, settings saved — passed | Owner |
 | 2026-10-07 | Burn rate / schedule changes switch AlwaysOn off; AlwaysOn keeps the other settings stored (R-27) | Owner |
+| 2026-10-08 | Add `nearby <metres>` (had been offered in the B-08 questions, omitted from 0.3.0); release as 0.3.1 | Owner |
 | 2026-10-08 | Release 0.3.0 without in-game testing ("users beware"); thorough testing before 1.0 | Owner |
 | 2026-10-07 | Repo public: https://github.com/krab7191/valheim_inferno_mod; link on the mod page (manifest website_url) and README | Owner |
 | 2026-10-07 | Per-base control: ward area if the sign/player is in a ward, else 20 m; ward permission like building | Owner |

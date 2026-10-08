@@ -32,10 +32,16 @@ public class NearbyCommandTests
         _executor = new CommandExecutor(catalog, _store);
     }
 
-    private CommandResult Run(string text, Func<NearbySelection>? nearby = null)
+    private float? _lastRadius = -1f;
+
+    private CommandResult Run(string text, Func<float?, NearbySelection>? nearby = null)
     {
         Assert.Equal(ParseOutcome.Command, CommandParser.Parse(text, out var command, out _));
-        return _executor.Execute(command, Player, nearby ?? (() => Selection));
+        return _executor.Execute(command, Player, nearby ?? (radius =>
+        {
+            _lastRadius = radius;
+            return Selection;
+        }));
     }
 
     [Fact]
@@ -148,8 +154,52 @@ public class NearbyCommandTests
     {
         var empty = new NearbySelection([], "in this ward's area");
 
-        Assert.Equal([expected], Run(text, () => text.Contains("hot tub", StringComparison.Ordinal) ? Selection : empty).Reply);
+        Assert.Equal([expected], Run(text, _ => text.Contains("hot tub", StringComparison.Ordinal) ? Selection : empty).Reply);
     }
+
+    // ---- Radius ----
+
+    [Theory]
+    [InlineData("!fires schedule nearby 2 13:00 14:00", 2f)]
+    [InlineData("!fires alwayson standing wood torch nearby 2.5 off", 2.5f)]
+    [InlineData("!fires burnrate torches nearby 40 -5", 40f)]
+    [InlineData("!fires show nearby 10", 10f)]
+    [InlineData("!fires reset nearby 1", 1f)]
+    [InlineData("!fires preset night nearby 100", 100f)]
+    [InlineData("!fires preset night nearby", null)]
+    public void Radius_IsPassedToTheProvider(string text, float? expected)
+    {
+        Run(text);
+
+        Assert.Equal(expected, _lastRadius);
+    }
+
+    [Theory]
+    [InlineData("!fires schedule nearby 0 13:00 14:00")]
+    [InlineData("!fires show nearby 101")]
+    [InlineData("!fires show nearby -3")]
+    [InlineData("!fires show nearby NaN")]
+    public void Radius_OutOfRange_Explains(string text)
+    {
+        var result = Run(text);
+
+        Assert.Equal(["Radius must be 1 to 100 m."], result.Reply);
+        Assert.Equal(-1f, _lastRadius); // provider never asked
+    }
+
+    [Fact]
+    public void Radius_ShowsInUndo()
+    {
+        Run("!fires alwayson nearby 3 off");
+
+        Assert.Equal("Undone: AlwaysOn = off on 'nearby 3'.", Run("!fires undo").Reply[0]);
+    }
+
+    [Theory]
+    [InlineData("!fires show hot tub nearby x 5")]  // "nearby" not near the end: just an item name
+    [InlineData("!fires show nearby x")]           // word after nearby isn't a number
+    public void NotNearbyForm_IsTreatedAsItemName(string text) =>
+        Assert.StartsWith("Unknown item", Run(text).Reply[0], StringComparison.Ordinal);
 
     [Fact]
     public void Nearby_WithoutLocation_Explains()

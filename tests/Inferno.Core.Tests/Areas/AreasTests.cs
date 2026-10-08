@@ -130,3 +130,25 @@ public class NearbySelectionTests
         Assert.False(obj.Allowed);
     }
 }
+
+public class NearbyCircleTests
+{
+    [Fact]
+    public void Circle_IgnoresWards_AndUsesRadius()
+    {
+        var area = NearbyArea.Circle(0, 0, 2);
+
+        Assert.False(area.IsWardArea);
+        Assert.Equal("within 2 m", area.Description);
+        Assert.True(area.Contains(2, 0));
+        Assert.False(area.Contains(2.1f, 0));
+    }
+
+    [Theory]
+    [InlineData(0f)]
+    [InlineData(-1f)]
+    [InlineData(float.NaN)]
+    [InlineData(float.PositiveInfinity)]
+    public void Circle_InvalidRadius_Throws(float radius) =>
+        Assert.Throws<System.ArgumentOutOfRangeException>("radius", () => NearbyArea.Circle(0, 0, radius));
+}

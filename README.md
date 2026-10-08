@@ -25,7 +25,7 @@ Source code, documentation and issue tracker: https://github.com/krab7191/valhei
 | In-game item names and word groups | Available | `hot tub`, `standing wood torch`, `torches`, `braziers`; typos get suggestions |
 | Presets and undo | Available | `preset night` / `eternal` / `vanilla` in one command; `undo` steps back through your last 10 changes |
 | Readable replies | Available | One message on screen, kept in Compendium → Message log; sign commands leave a short answer on the sign (formatting like `<color=green>` is kept) |
-| Per-base control (`nearby`) | Implemented, awaiting in-game test | Change only the fires in your ward's area (or within 20 m); ward access required, like building |
+| Per-base control (`nearby`) | Implemented, awaiting in-game test | Change only the fires in your ward's area (or within 20 m), or within a radius you choose (`nearby 2`); ward access required, like building |
 | Config file with live reload | Available | Edit through your host's web file manager; no restart |
 | `AdminOnly` permission switch | Available | Off by default: anyone may change settings. Anyone can turn it on; only admins can turn it off. Inferno never changes the server's admin list |
 | Full audit log and error reporting | Available | Every command, every change (who, old → new) and every config-file edit goes to the BepInEx log |
@@ -116,9 +116,16 @@ around the sign, e.g. `!fires preset night nearby` or `!fires burnrate torches n
 - Inside a **ward**, "nearby" means that ward's area, and only players with access to the ward (its builder and the
   players they added) can change its fires: the same rule as building there.
 - Without a ward it means everything within **20 m**, and anyone may change it, as with building.
+- With a number, e.g. `nearby 2`, it means exactly that many metres (1–100) around you or the sign, even inside a
+  ward. Ward permission still applies to every fire. The number goes right after `nearby`, before the value:
+  `!fires burnrate torches nearby 5 -10`.
 - Those fires keep their **own settings** (saved with the fire, also after a restart); later changes to their item
   type don't affect them. `!fires show nearby` lists them; `!fires reset nearby` makes them follow their item type
   again.
+
+**Example: a clock.** Place 24 torches a few metres apart, each with a sign right next to it. On each torch's sign
+write `!fires burnrate nearby 2 -10`, then that torch's hour, e.g. `!fires schedule nearby 2 13:00 14:00`
+(the last one `23:00 00:00`). Exactly one torch is lit at any time.
 
 **Always on vs. burn rate and schedule:** while always on is on, burn rate and schedule have no effect. Setting a
 burn rate or a schedule window therefore switches always on off for those items (the reply tells you).
@@ -208,6 +215,7 @@ These come from how Valheim works and apply to any server-only mod:
 |-----------------|-----------------|----------------|
 | 1.0.17 | 0.1.0 – 0.2.x | Yes: local and hosted dedicated servers, vanilla PC clients (incl. two players). Crossplay with console clients: not yet |
 | 1.0.17 | 0.3.0 | **Not tested in-game** (released untested; unit tests only). If you see problems, use 0.2.2 and report them |
+| 1.0.17 | 0.3.1 | **Not tested in-game**, like 0.3.0 (adds `nearby <metres>`). If you see problems, use 0.2.2 and report them |
 
 Inferno targets the **latest stable Valheim release** only. New game patches are tested as they ship; older game
 versions are not supported.

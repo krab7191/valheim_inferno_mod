@@ -156,11 +156,14 @@ internal sealed class FuelScanner(PrefabDiscovery.Result discovery, ISettingsSto
         return wards;
     }
 
-    /// <summary>The fires around a spot for a "nearby" command, with the player's ward access to each.</summary>
-    public NearbySelection Nearby(Vector3 spot, long playerId)
+    /// <summary>
+    /// The fires around a spot for a "nearby" command, with the player's ward access to each. A radius ("nearby 5")
+    /// gives a plain circle; without one, the ward area or 20 m.
+    /// </summary>
+    public NearbySelection Nearby(Vector3 spot, long playerId, float? radius)
     {
         var wards = Wards();
-        var area = NearbyArea.Around(wards, spot.x, spot.z);
+        var area = radius is { } metres ? NearbyArea.Circle(spot.x, spot.z, metres) : NearbyArea.Around(wards, spot.x, spot.z);
         var objects = new List<NearbyObject>();
         foreach (var id in _fuel)
         {

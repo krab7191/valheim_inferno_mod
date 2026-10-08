@@ -42,7 +42,7 @@ public sealed class CommandExecutor
             "a word – torches, braziers, fires, lanterns",
             "a group – lights, stations, all",
             "show <item> – its settings · list – everything",
-            "add 'nearby' – only fires in your ward / within 20 m",
+            "add 'nearby' (ward / 20 m) or 'nearby 5' (metres)",
         ],
         ["presets"] =
         [
@@ -68,7 +68,7 @@ public sealed class CommandExecutor
     private readonly ISettingsStore _store;
     private readonly Func<IReadOnlyList<string>> _status;
     private readonly Dictionary<string, List<UndoEntry>> _undo = new(StringComparer.Ordinal);
-    private Func<NearbySelection>? _nearby;
+    private Func<float?, NearbySelection>? _nearby;
 
     /// <summary>Creates an executor.</summary>
     /// <param name="catalog">All known items.</param>
@@ -89,11 +89,12 @@ public sealed class CommandExecutor
     /// <param name="command">The parsed command.</param>
     /// <param name="sender">Who sent it.</param>
     /// <param name="nearby">
-    /// Finds the objects around the sign or player, for commands with "nearby"; null where there is no location
+    /// Finds the objects around the sign or player, for commands with "nearby". The argument is the radius the
+    /// player gave ("nearby 5"), or null for the default (ward area or 20 m). Null where there is no location
     /// (e.g. the settings menu).
     /// </param>
     /// <exception cref="ArgumentNullException"><paramref name="command"/> or <paramref name="sender"/> is null.</exception>
-    public CommandResult Execute(ParsedCommand command, CommandSender sender, Func<NearbySelection>? nearby = null)
+    public CommandResult Execute(ParsedCommand command, CommandSender sender, Func<float?, NearbySelection>? nearby = null)
     {
         _nearby = nearby;
         if (command is null)
@@ -114,7 +115,7 @@ public sealed class CommandExecutor
                 return Ok(_status());
             case CommandKind.List:
             case CommandKind.Show:
-                return TrySplitNearby(command.Target!, out var showFilter) ? ShowNearby(showFilter) : Show(command.Target!);
+                return TrySplitNearby(command.Target!, out var showScope) ? ShowNearby(showScope) : Show(command.Target!);
         }
 
         if (!PermissionPolicy.CanChangeSettings(sender.IsAdmin, _store.General.AdminOnly))
@@ -135,8 +136,8 @@ public sealed class CommandExecutor
                 "Schedule",
                 command.Schedule.ToString(),
                 (i, s) => !i.CanSchedule ? null : command.Schedule.IsAlwaysOn ? s.WithSchedule(command.Schedule) : s.WithSchedule(command.Schedule).WithAlwaysOn(false)),
-            CommandKind.Reset => TrySplitNearby(command.Target!, out var resetFilter)
-                ? UpdateObjects(sender, resetFilter, "Settings", "item type's", null)
+            CommandKind.Reset => TrySplitNearby(command.Target!, out var resetScope)
+                ? UpdateObjects(sender, resetScope, "Settings", "item type's", null)
                 : UpdateItems(sender, command.Target!, "Settings", "defaults", (i, _) => ItemSettings.DefaultFor(i.Kind)),
             CommandKind.Preset => ApplyPreset(sender, command),
             CommandKind.Undo => Undo(sender),
@@ -207,9 +208,9 @@ public sealed class CommandExecutor
         string newValueText,
         Func<CatalogItem, ItemSettings, ItemSettings?> update)
     {
-        if (TrySplitNearby(target, out var filter))
+        if (TrySplitNearby(target, out var scope))
         {
-            return UpdateObjects(sender, filter, settingName, newValueText, update);
+            return UpdateObjects(sender, scope, settingName, newValueText, update);
         }
 
         if (!TryResolve(target, out var items, out var error))
@@ -351,34 +352,49 @@ public sealed class CommandExecutor
         }
     }
 
-    // "nearby" or "<item> nearby": the command applies to the objects around the sign or player only.
-    private static bool TrySplitNearby(string target, out string? filter)
+    // "nearby", "nearby 5", "<item> nearby" or "<item> nearby 5": the command applies to the objects around the
+    // sign or player only (a number = a circle of that many metres instead of the ward area / 20 m).
+    private static bool TrySplitNearby(string target, out NearbyScope scope)
     {
-        var trimmed = target.Trim();
-        filter = null;
-        if (string.Equals(trimmed, NearbyWord, StringComparison.OrdinalIgnoreCase))
+        scope = default;
+        var words = target.Split([' '], StringSplitOptions.RemoveEmptyEntries);
+        var at = Array.FindLastIndex(words, w => string.Equals(w, NearbyWord, StringComparison.OrdinalIgnoreCase));
+        if (at < 0 || at < words.Length - 2)
         {
-            return true;
+            return false;
         }
 
-        if (trimmed.EndsWith(" " + NearbyWord, StringComparison.OrdinalIgnoreCase))
+        float? radius = null;
+        if (at == words.Length - 2)
         {
-            filter = trimmed.Substring(0, trimmed.Length - NearbyWord.Length - 1).Trim();
-            return true;
+            if (!float.TryParse(words[words.Length - 1], NumberStyles.Float, CultureInfo.InvariantCulture, out var metres))
+            {
+                return false;
+            }
+
+            radius = metres;
         }
 
-        return false;
+        scope = new NearbyScope(at == 0 ? null : string.Join(" ", words, 0, at), radius);
+        return true;
     }
 
     // The objects a "nearby" command applies to, or an error line for the reply.
-    private bool TrySelectNearby(string? filter, out List<(NearbyObject Object, CatalogItem Item)> selected, out string area, out string error)
+    private bool TrySelectNearby(NearbyScope scope, out List<(NearbyObject Object, CatalogItem Item)> selected, out string area, out string error)
     {
         selected = [];
         area = string.Empty;
         error = string.Empty;
+        var filter = scope.Filter;
         if (_nearby is null)
         {
             error = "'nearby' only works on a sign, in chat or in the F5 console.";
+            return false;
+        }
+
+        if (scope.Radius is { } radius && !(radius >= NearbyArea.MinRadius && radius <= NearbyArea.MaxRadius))
+        {
+            error = string.Format(CultureInfo.InvariantCulture, "Radius must be {0:0} to {1:0} m.", NearbyArea.MinRadius, NearbyArea.MaxRadius);
             return false;
         }
 
@@ -393,7 +409,7 @@ public sealed class CommandExecutor
             wanted = new HashSet<string>(items.Select(i => i.PrefabName), StringComparer.OrdinalIgnoreCase);
         }
 
-        var selection = _nearby();
+        var selection = _nearby(scope.Radius);
         area = selection.AreaDescription;
         foreach (var obj in selection.Objects)
         {
@@ -415,12 +431,12 @@ public sealed class CommandExecutor
     // Changes the objects' own settings. update == null resets them to follow their item type again.
     private CommandResult UpdateObjects(
         CommandSender sender,
-        string? filter,
+        NearbyScope scope,
         string settingName,
         string newValueText,
         Func<CatalogItem, ItemSettings, ItemSettings?>? update)
     {
-        if (!TrySelectNearby(filter, out var selected, out var area, out var error))
+        if (!TrySelectNearby(scope, out var selected, out var area, out var error))
         {
             return Ok([error]);
         }
@@ -498,16 +514,16 @@ public sealed class CommandExecutor
 
         if (changes.Count > 0)
         {
-            Remember(sender, UndoEntry.ForObjects($"{settingName} = {newValueText} on '{(filter is null ? NearbyWord : filter + " " + NearbyWord)}'", undo));
+            Remember(sender, UndoEntry.ForObjects($"{settingName} = {newValueText} on '{scope}'", undo));
         }
 
         return new CommandResult(reply, changes, denied: false);
     }
 
     // One line per item type with the fires' settings; fires with their own settings are marked.
-    private CommandResult ShowNearby(string? filter)
+    private CommandResult ShowNearby(NearbyScope scope)
     {
-        if (!TrySelectNearby(filter, out var selected, out var area, out var error))
+        if (!TrySelectNearby(scope, out var selected, out var area, out var error))
         {
             return Ok([error]);
         }
@@ -568,6 +584,20 @@ public sealed class CommandExecutor
     private static string OnOff(bool value) => value ? "on" : "off";
 
     private static string Number(int value) => value.ToString(CultureInfo.InvariantCulture);
+
+    // What a "nearby" command selects: an optional item filter and an optional radius.
+    private readonly struct NearbyScope(string? filter, float? radius)
+    {
+        public string? Filter { get; } = filter;
+
+        public float? Radius { get; } = radius;
+
+        public override string ToString()
+        {
+            var words = Filter is null ? NearbyWord : Filter + " " + NearbyWord;
+            return Radius is { } r ? words + " " + r.ToString(CultureInfo.InvariantCulture) : words;
+        }
+    }
 
     private sealed class UndoEntry
     {

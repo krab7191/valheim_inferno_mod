@@ -19,7 +19,7 @@ internal sealed class CommandService(CommandExecutor executor, ConfigSettingsSto
     private SettingsSnapshot _snapshot = store.Snapshot();
 
     /// <summary>Finds the fires around a spot for "nearby" commands (set once the scanner exists).</summary>
-    public Func<Vector3, long, NearbySelection>? FindNearby { get; set; }
+    public Func<Vector3, long, float?, NearbySelection>? FindNearby { get; set; }
 
     /// <summary>Raised after any setting changed (command, menu or config-file edit).</summary>
     public event Action? SettingsChanged;
@@ -156,8 +156,8 @@ internal sealed class CommandService(CommandExecutor executor, ConfigSettingsSto
         }
     }
 
-    private Func<NearbySelection>? NearbyOf(Vector3 spot, long playerId) =>
-        FindNearby is { } find ? () => find(spot, playerId) : null;
+    private Func<float?, NearbySelection>? NearbyOf(Vector3 spot, long playerId) =>
+        FindNearby is { } find ? radius => find(spot, playerId, radius) : null;
 
     private IReadOnlyList<string> Run(
         string source,
@@ -166,7 +166,7 @@ internal sealed class CommandService(CommandExecutor executor, ConfigSettingsSto
         ParseOutcome outcome,
         ParsedCommand command,
         string error,
-        Func<NearbySelection>? nearby,
+        Func<float?, NearbySelection>? nearby,
         out bool denied)
     {
         denied = false;

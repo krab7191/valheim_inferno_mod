@@ -5,6 +5,15 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-08
+
+**Released without in-game testing** (unit-tested only), like 0.3.0.
+
+### Added
+- `nearby <metres>` (1–100): a plain circle of that size around the sign or player, e.g.
+  `!fires schedule nearby 2 13:00 14:00` changes only the torch right next to the sign. Ward permission still
+  applies. Without a number, `nearby` still means the ward's area, or 20 m.
+
 ## [0.3.0] - 2026-10-08
 
 **Released without in-game testing** (unit-tested only). Changes since 0.2.x run on every fire, not only for

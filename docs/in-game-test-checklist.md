@@ -114,6 +114,7 @@ Tip: a small test world makes it easier: place one of each torch/fire/hearth/hot
 | N-03 | No ward | Away from wards: `!fires alwayson nearby off` | Only fires within 20 m change; reply says "within 20 m" | R-28 |
 | N-04 | Own settings survive | Restart the server; `!fires show nearby` | Still "(own settings)" | R-28 |
 | N-05 | Item-type change doesn't override | `!fires preset eternal torches` after N-01 | Torches in the ward keep the night preset | R-28 |
+| N-07 | Radius | Two torches 5 m apart, sign next to one: `!fires schedule nearby 2 13:00 14:00` | Only the torch next to the sign changes; reply says "within 2 m" | R-28 |
 | N-06 | Reset | `!fires reset nearby` | "… back to their item type's settings" | R-28 |
 | P-01 | Performance line | Run the server 10+ minutes | Log line "Performance (last 10 min): …" | R-29 |
 | C-15 | In-game names | `!fires show hot tub`, `!fires burnrate standing wood torch -5`, `!fires show torch` | First two work (torch: both items named "Standing Wood Torch" change); third suggests names | R-21 |

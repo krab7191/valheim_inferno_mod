@@ -13,6 +13,12 @@ public sealed class NearbyArea
     /// <summary>Radius used where no ward covers the spot.</summary>
     public const float DefaultRadius = 20f;
 
+    /// <summary>Smallest radius a player may give ("nearby 1").</summary>
+    public const float MinRadius = 1f;
+
+    /// <summary>Largest radius a player may give ("nearby 100").</summary>
+    public const float MaxRadius = 100f;
+
     private readonly IReadOnlyList<Ward> _wards;
     private readonly float _x;
     private readonly float _z;
@@ -33,6 +39,21 @@ public sealed class NearbyArea
     public string Description => IsWardArea
         ? (_wards.Count == 1 ? "in this ward's area" : $"in the area of {_wards.Count} wards")
         : string.Format(System.Globalization.CultureInfo.InvariantCulture, "within {0:0} m", _radius);
+
+    /// <summary>
+    /// A plain circle around a spot, ignoring ward areas (for "nearby &lt;metres&gt;"). Ward permission is still
+    /// checked per fire with <see cref="CanAccess"/>.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="radius"/> is not a finite number &gt; 0.</exception>
+    public static NearbyArea Circle(float x, float z, float radius)
+    {
+        if (!(radius > 0f) || float.IsInfinity(radius))
+        {
+            throw new ArgumentOutOfRangeException(nameof(radius), radius, "Radius must be a finite number > 0.");
+        }
+
+        return new NearbyArea([], x, z, radius);
+    }
 
     /// <summary>Works out the area around a spot (a sign, or the player for chat and console commands).</summary>
     /// <param name="wards">All wards in the world.</param>
