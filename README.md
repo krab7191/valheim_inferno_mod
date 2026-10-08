@@ -207,7 +207,7 @@ These come from how Valheim works and apply to any server-only mod:
 | Valheim version | Inferno version | Tested in-game |
 |-----------------|-----------------|----------------|
 | 1.0.17 | 0.1.0 – 0.2.x | Yes: local and hosted dedicated servers, vanilla PC clients (incl. two players). Crossplay with console clients: not yet |
-| 1.0.17 | 0.3.0 | `nearby` (per-base control) awaiting in-game test |
+| 1.0.17 | 0.3.0 | **Not tested in-game** (released untested; unit tests only). If you see problems, use 0.2.2 and report them |
 
 Inferno targets the **latest stable Valheim release** only. New game patches are tested as they ship; older game
 versions are not supported.

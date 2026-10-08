@@ -378,6 +378,7 @@ Known caveat (dev only): config values saved by a build that classified an item 
 | 2026-10-07 | Crossplay works with BepInEx (confirmed by owner) | Owner |
 | 2026-10-07 | In-game (local server, vanilla client): always-on, schedule (incl. midnight), fuel kept while off, clock vs. sun, sign commands, status, in-game names, settings saved — passed | Owner |
 | 2026-10-07 | Burn rate / schedule changes switch AlwaysOn off; AlwaysOn keeps the other settings stored (R-27) | Owner |
+| 2026-10-08 | Release 0.3.0 without in-game testing ("users beware"); thorough testing before 1.0 | Owner |
 | 2026-10-07 | Repo public: https://github.com/krab7191/valheim_inferno_mod; link on the mod page (manifest website_url) and README | Owner |
 | 2026-10-07 | Per-base control: ward area if the sign/player is in a ward, else 20 m; ward permission like building | Owner |
 | 2026-10-07 | Publish 0.2.0 (local test passed for presets, word groups, instant signs; undo not yet tested in-game) | Owner |

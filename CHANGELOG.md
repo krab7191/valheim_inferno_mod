@@ -5,7 +5,10 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.3.0] - 2026-10-07
+## [0.3.0] - 2026-10-08
+
+**Released without in-game testing** (unit-tested only). Changes since 0.2.x run on every fire, not only for
+players who use `nearby`. If something misbehaves, go back to 0.2.2 and please report it on GitHub.
 
 ### Added
 - **Per-base control with `nearby`**: add `nearby` to an item command to change only the fires around you or the
