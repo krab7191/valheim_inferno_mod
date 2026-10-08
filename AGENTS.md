@@ -101,6 +101,11 @@ Coverage report (Cobertura XML): `artifacts/TestResults/`. Setting `InfernoDeplo
 - Thunderstore versions are permanent: every upload needs a new `<Version>` in `Directory.Build.props`
   (semantic versioning) and a matching `CHANGELOG.md` section. Update `TestedGameVersion` in `InfernoPlugin.cs`
   and the README compatibility table only for game versions actually tested.
+- Before each release, re-read the README as it will appear on Thunderstore: feature statuses and the
+  compatibility table must match what has actually been tested. Don't write version numbers into the README text
+  (Thunderstore shows the version); only the compatibility table names versions.
+- The Release build refuses to package if README.md has no compatibility row `| <version> |` or CHANGELOG.md has
+  no `## [<version>]` section, so a stale Thunderstore page can't be uploaded by accident.
 - `dotnet build -c Release` builds both zips; the owner uploads the Thunderstore zip.
 
 ## When you finish a task

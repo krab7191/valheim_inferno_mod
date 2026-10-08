@@ -40,6 +40,15 @@
   </Target>
 
   <!-- Release builds produce artifacts/Inferno-<version>.zip, laid out to unzip straight into the Valheim folder. -->
+  <!-- The README is the Thunderstore page: it must describe the version being released (checked before any package). -->
+  <Target Name="CheckReleaseDocs" AfterTargets="Build" BeforeTargets="PackagePlugin;PackageThunderstore" Condition="'$(Configuration)' == 'Release'">
+    <PropertyGroup>
+      <DocsRoot>$(MSBuildThisFileDirectory)../../</DocsRoot>
+    </PropertyGroup>
+    <Error Condition="!$([System.IO.File]::ReadAllText('$(DocsRoot)README.md').Contains('| $(Version) |'))" Text="README.md has no compatibility row for $(Version). Update the README (= Thunderstore page) for this version before packaging." />
+    <Error Condition="!$([System.IO.File]::ReadAllText('$(DocsRoot)CHANGELOG.md').Contains('## [$(Version)]'))" Text="CHANGELOG.md has no '## [$(Version)]' section. Add one before packaging." />
+  </Target>
+
   <Target Name="PackagePlugin" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
     <PropertyGroup>
       <PackageRoot>$(MSBuildThisFileDirectory)../../artifacts/package/</PackageRoot>

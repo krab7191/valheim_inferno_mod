@@ -5,8 +5,8 @@ so it works with Xbox / Game Pass crossplay.**
 
 Source code, documentation and issue tracker: https://github.com/krab7191/valheim_inferno_mod
 
-> **Status: beta (0.1.0).** Every feature is implemented and unit-tested. Features marked *Available* have also
-> been verified in-game on a dedicated server with vanilla PC clients; the others are awaiting in-game testing
+> **Status: beta.** Every feature is unit-tested. Features marked *Available* have also been verified in-game on
+> dedicated servers (local and hosted) with vanilla PC clients; the others are awaiting in-game testing
 > (see [Compatibility](#compatibility)).
 
 ## Features
@@ -15,14 +15,17 @@ Source code, documentation and issue tracker: https://github.com/krab7191/valhei
 |---------|--------|-------|
 | Server-only install (clients need nothing, crossplay-safe) | Available (PC clients tested; console clients not yet) | No version check, no new items: vanilla and Xbox clients join as normal |
 | Per-item settings for every fuel-burning piece | Available | Found automatically at startup, including pieces added by other mods |
-| Always on | Available | **Default for all light sources** (torches, sconces, fires, hearths, braziers, lanterns, hot tubs, …). Keeps fuel full everywhere, also where nobody is nearby, so bases aren't dark when you arrive. Overrides the schedule |
+| Always on | Available | **Default for all light sources** (torches, sconces, fires, hearths, braziers, lanterns, hot tubs, …). Keeps fuel full everywhere, also where nobody is nearby, so bases aren't dark when you arrive. While on, burn rate and schedule are kept but don't apply |
 | Fuel burn rate | Implemented, awaiting in-game test | −10 to +10, 0 = vanilla, each step 10 %: −10 uses no fuel, +10 burns twice as fast |
 | Daily on/off schedule | Available | On and off time on the in-game clock (06:00 = sunrise, 18:00 = sunset), one window per day. Equal times (default 00:00/00:00) = no schedule. Fuel is kept while a light is scheduled off. Only used when *always on* is off |
 | Ignore rain | Implemented, awaiting in-game test | Off by default (lights go out in the rain as in vanilla). The server log lists which lights react to rain. See [Limits](#known-limits) |
 | Correct burning while nobody is nearby | Implemented, awaiting in-game test | Vanilla burns all missed time at once when a player arrives, ignoring schedules. Inferno burns it on the server as time passes, following schedule and burn rate |
 | Server ownership mode (experimental, off by default) | Implemented, awaiting in-game test | The server keeps ownership of fires, so no player's game burns their fuel or puts them out in rain: fuel only changes when the server says so. Exact burn rate and schedule. See [Server ownership mode](#server-ownership-mode-experimental) |
-| Commands on signs and in the F5 console | Available | See [Commands](#commands) |
-| Commands in chat | Implemented, awaiting in-game test | Needs a second player online |
+| Commands on signs, in chat and in the F5 console | Available | See [Commands](#commands). Chat needs a second player online |
+| In-game item names and word groups | Available | `hot tub`, `standing wood torch`, `torches`, `braziers`; typos get suggestions |
+| Presets and undo | Available | `preset night` / `eternal` / `vanilla` in one command; `undo` steps back through your last 10 changes |
+| Readable replies | Available | One message on screen, kept in Compendium → Message log; sign commands leave a short answer on the sign (formatting like `<color=green>` is kept) |
+| Per-base control (`nearby`) | Implemented, awaiting in-game test | Change only the fires in your ward's area (or within 20 m); ward access required, like building |
 | Config file with live reload | Available | Edit through your host's web file manager; no restart |
 | `AdminOnly` permission switch | Available | Off by default: anyone may change settings. Anyone can turn it on; only admins can turn it off. Inferno never changes the server's admin list |
 | Full audit log and error reporting | Available | Every command, every change (who, old → new) and every config-file edit goes to the BepInEx log |
@@ -133,7 +136,7 @@ apply live. A fully commented `sample-config.cfg` comes with the download (also
 | | `HideCommands` | `true` | Hide `!fires` chat lines from other players |
 | | `IgnoreRain` | `false` | Relight lights put out by rain or wind |
 | | `ServerOwnership` | `false` | Experimental: server keeps ownership of fires |
-| `[<item>]` | `AlwaysOn` | lights `true`, stations `false` | Keep fuel full; overrides the schedule |
+| `[<item>]` | `AlwaysOn` | lights `true`, stations `false` | Keep fuel full. While on, burn rate and schedule don't apply |
 | | `BurnRate` | `0` | −10 … +10, 10 % per step |
 | | `Smoke` | `true` | Smoke on/off (client mod players only) |
 | | `OnTimeHour`, `OnTimeMinute` | `0`, `0` | Hour 0–24, minute 0–60 (lights only) |
@@ -203,7 +206,8 @@ These come from how Valheim works and apply to any server-only mod:
 
 | Valheim version | Inferno version | Tested in-game |
 |-----------------|-----------------|----------------|
-| 1.0.17 | 0.1.0 | Yes: local dedicated server, vanilla PC client. Hosted servers, crossplay and console clients: not yet |
+| 1.0.17 | 0.1.0 – 0.2.x | Yes: local and hosted dedicated servers, vanilla PC clients (incl. two players). Crossplay with console clients: not yet |
+| 1.0.17 | 0.3.0 | `nearby` (per-base control) awaiting in-game test |
 
 Inferno targets the **latest stable Valheim release** only. New game patches are tested as they ship; older game
 versions are not supported.
