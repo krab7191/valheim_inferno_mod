@@ -123,9 +123,13 @@ around the sign, e.g. `!fires preset night nearby` or `!fires burnrate torches n
   type don't affect them. `!fires show nearby` lists them; `!fires reset nearby` makes them follow their item type
   again.
 
-**Example: a clock.** Place 24 torches a few metres apart, each with a sign right next to it. On each torch's sign
-write `!fires burnrate nearby 2 -10`, then that torch's hour, e.g. `!fires schedule nearby 2 13:00 14:00`
-(the last one `23:00 00:00`). Exactly one torch is lit at any time.
+**Example: a clock.** Place 12 torches in a circle, at least 2 m apart, each with a sign right next to it. Going
+clockwise from the top, write `!fires schedule nearby 1 00:00 12:00` on the first sign, `01:00 13:00` on the next,
+and so on up to `11:00 23:00`. Each torch burns for 12 hours, so the lit arc grows from the top in the morning and
+shrinks from the top in the afternoon: top torch lit = morning, the last lit torch is the hour; top torch dark =
+afternoon, the last dark torch is the hour (+12).
+
+![A clock of 12 torches: the lit arc shows the hour](https://raw.githubusercontent.com/krab7191/valheim_inferno_mod/main/docs/images/torch-clock.jpg)
 
 **Always on vs. burn rate and schedule:** while always on is on, burn rate and schedule have no effect. Setting a
 burn rate or a schedule window therefore switches always on off for those items (the reply tells you).
