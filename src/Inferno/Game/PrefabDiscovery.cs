@@ -123,7 +123,7 @@ internal static class PrefabDiscovery
         log.LogInfo($"Discovered {catalog.Items.Count} fuel-burning item types and {signs.Count} sign types.");
         log.LogInfo(rainSensitive.Count == 0
             ? "No lights switch themselves off in rain."
-            : $"Lights that switch themselves off in rain or strong wind when uncovered (see IgnoreRain): {string.Join(", ", rainSensitive)}");
+            : $"Lights that switch themselves off in rain or strong wind when uncovered: {string.Join(", ", rainSensitive)}");
         log.LogInfo($"Server ownership mode can manage {ownershipCandidates.Count} fire type(s)."
             + (ownershipConditional.Count == 0 ? string.Empty : $" Except where their extras apply (MeltsSnow: Deep North; SpreadsFire: Ashlands or fire modifier): {string.Join(", ", ownershipConditional)}.")
             + (ownershipExcluded.Count == 0 ? string.Empty : $" Never (other owner-run parts): {string.Join(", ", ownershipExcluded)}."));

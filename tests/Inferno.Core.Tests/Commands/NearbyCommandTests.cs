@@ -51,9 +51,8 @@ public class NearbyCommandTests
 
         Assert.Equal(
             [
-                "Preset = night: 2 of 4 fire(s) in this ward's area changed.",
+                "Preset = night: 2 of 3 fire(s) in this ward's area changed.",
                 "1 skipped: they're in a ward you have no access to.",
-                "1 skipped: no on/off switch, so no schedule.",
             ],
             result.Reply);
         Assert.Equal(DailySchedule.Night, _store.GetObject("1:1")!.Schedule);
@@ -63,6 +62,44 @@ public class NearbyCommandTests
         Assert.Equal(2, result.Changes.Count);
         Assert.Equal("hearth 1:1", result.Changes[0].Section);
         Assert.Equal("follows item type", result.Changes[0].OldValue);
+    }
+
+    // A preset without an item changes only its default group (lights for eternal and night), as without "nearby".
+    [Fact]
+    public void Preset_Nearby_WithoutItem_LeavesStationsAlone()
+    {
+        var result = Run("!fires preset eternal nearby");
+
+        Assert.Equal(["Preset = eternal: 0 of 3 fire(s) in this ward's area changed.", "1 skipped: they're in a ward you have no access to."], result.Reply);
+        Assert.Null(_store.GetObject("1:4"));
+    }
+
+    [Fact]
+    public void Preset_Nearby_NamedStation_StillApplies()
+    {
+        var result = Run("!fires preset eternal smelter nearby");
+
+        Assert.Equal(["Preset = eternal: 1 of 1 fire(s) in this ward's area changed."], result.Reply);
+        Assert.True(_store.GetObject("1:4")!.AlwaysOn);
+    }
+
+    [Fact]
+    public void Preset_Nearby_Vanilla_StillCoversEverything()
+    {
+        Run("!fires alwayson smelter nearby on");
+
+        var result = Run("!fires preset vanilla nearby");
+
+        Assert.Equal("Preset = vanilla: 3 of 4 fire(s) in this ward's area changed.", result.Reply[0]);
+        Assert.False(_store.GetObject("1:4")!.AlwaysOn);
+    }
+
+    [Fact]
+    public void Preset_Nearby_NoSwitch_IsSkipped()
+    {
+        var result = Run("!fires preset night smelter nearby");
+
+        Assert.Equal(["Preset = night: 0 of 1 fire(s) in this ward's area changed.", "1 skipped: no on/off switch, so no schedule."], result.Reply);
     }
 
     [Fact]
@@ -149,7 +186,8 @@ public class NearbyCommandTests
     [Theory]
     [InlineData("!fires show hot tub nearby", "Unknown item 'hot tub'. Use 'list' to see all items.")]
     [InlineData("!fires alwayson hearth nearby on", "No 'hearth' in this ward's area.")]
-    [InlineData("!fires preset night nearby", "No fires in this ward's area.")]
+    [InlineData("!fires preset night nearby", "No 'lights' in this ward's area.")]
+    [InlineData("!fires reset nearby", "No fires in this ward's area.")]
     public void Nearby_Errors(string text, string expected)
     {
         var empty = new NearbySelection([], "in this ward's area");

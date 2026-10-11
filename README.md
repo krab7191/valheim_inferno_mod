@@ -18,21 +18,19 @@ Source code, documentation and issue tracker: https://github.com/krab7191/valhei
 | Always on | Available | **Default for all light sources** (torches, sconces, fires, hearths, braziers, lanterns, hot tubs, …). Keeps fuel full everywhere, also where nobody is nearby, so bases aren't dark when you arrive. While on, burn rate and schedule are kept but don't apply |
 | Fuel burn rate | Implemented, awaiting in-game test | −10 to +10, 0 = vanilla, each step 10 %: −10 uses no fuel, +10 burns twice as fast |
 | Daily on/off schedule | Available | On and off time on the in-game clock (06:00 = sunrise, 18:00 = sunset), one window per day. Equal times (default 00:00/00:00) = no schedule. Fuel is kept while a light is scheduled off. Only used when *always on* is off |
-| Ignore rain | Implemented, awaiting in-game test | Off by default (lights go out in the rain as in vanilla). The server log lists which lights react to rain. See [Limits](#known-limits) |
 | Correct burning while nobody is nearby | Implemented, awaiting in-game test | Vanilla burns all missed time at once when a player arrives, ignoring schedules. Inferno burns it on the server as time passes, following schedule and burn rate |
-| Server ownership mode (experimental, off by default) | Implemented, awaiting in-game test | The server keeps ownership of fires, so no player's game burns their fuel or puts them out in rain: fuel only changes when the server says so. Exact burn rate and schedule. See [Server ownership mode](#server-ownership-mode-experimental) |
+| Server ownership mode (experimental, off by default) | Implemented, awaiting in-game test | The server keeps ownership of fires, so no player's game burns their fuel or switches them off in rain: fuel only changes when the server says so. Exact burn rate and schedule. See [Server ownership mode](#server-ownership-mode-experimental) |
 | Commands on signs, in chat and in the F5 console | Available | See [Commands](#commands). Chat needs a second player online |
 | In-game item names and word groups | Available | `hot tub`, `standing wood torch`, `torches`, `braziers`; typos get suggestions |
 | Presets and undo | Available | `preset night` / `eternal` / `vanilla` in one command; `undo` steps back through your last 10 changes |
 | Readable replies | Available | One message on screen, kept in Compendium → Message log; sign commands leave a short answer on the sign (formatting like `<color=green>` is kept) |
-| Per-base control (`nearby`) | Implemented, awaiting in-game test | Change only the fires in your ward's area (or within 20 m), or within a radius you choose (`nearby 2`); ward access required, like building |
+| Per-base control (`nearby`) | `nearby <metres>`: Available (tested on PC). Ward area and 20 m: implemented, awaiting in-game test | Change only the fires in your ward's area (or within 20 m), or within a radius you choose (`nearby 2`); ward access required, like building |
 | Config file with live reload | Available | Edit through your host's web file manager; no restart |
 | `AdminOnly` permission switch | Available | Off by default: anyone may change settings. Anyone can turn it on; only admins can turn it off. Inferno never changes the server's admin list |
 | Full audit log and error reporting | Available | Every command, every change (who, old → new) and every config-file edit goes to the BepInEx log |
 | Safe uninstall | Implemented, awaiting in-game test | On a normal server shutdown Inferno switches scheduled-off lights back on before the world is saved; fuel stays as it is |
 | Optional PC client mod: in-game settings menu | Implemented, awaiting in-game test | Same DLL on a PC client + [ConfigurationManager](https://thunderstore.io/c/valheim/p/Azumatt/Official_BepInEx_ConfigurationManager/) (F1). Shows and edits the **server's** settings live; read-only for non-admins while `AdminOnly` is on. See [Client mod](#optional-client-mod-pc) |
 | Per-item smoke toggle | Implemented, awaiting in-game test | Removes smoke for players who have the client mod; everyone else sees vanilla smoke |
-| No rain flicker (client mod) | Implemented, awaiting in-game test | With `IgnoreRain` on, players with the client mod never have their lights put out by rain |
 
 Items that are not light sources (smelters, blast furnaces, ovens, …) keep vanilla behaviour until you change them.
 Items without fuel (e.g. the charcoal kiln) and fires with infinite fuel are not listed.
@@ -84,7 +82,6 @@ server. Without Inferno it just lists world keys, so it is harmless.
 | `reset <item>` | `!fires reset all` |
 | `adminonly on\|off` | `!fires adminonly on` |
 | `hidecommands on\|off` | `!fires hidecommands off` |
-| `ignorerain on\|off` | `!fires ignorerain on` |
 | `serverownership on\|off` | `!fires serverownership on` |
 
 `<item>` is the name **as shown in game**, e.g. `hot tub`, `standing wood torch`, `campfire` (case, spaces and
@@ -112,7 +109,8 @@ That's the same as doing it by hand (always on overrides the schedule, so it's s
 Changed your mind? `!fires undo`.
 
 **Only your base: `nearby`.** Add `nearby` after the item to change only the fires around you (chat, F5) or
-around the sign, e.g. `!fires preset night nearby` or `!fires burnrate torches nearby -5`.
+around the sign, e.g. `!fires preset night nearby` or `!fires burnrate torches nearby -5`. Presets still change only
+lights unless you name something (`!fires preset eternal smelter nearby`).
 - Inside a **ward**, "nearby" means that ward's area, and only players with access to the ward (its builder and the
   players they added) can change its fires: the same rule as building there.
 - Without a ward it means everything within **20 m**, and anyone may change it, as with building.
@@ -145,7 +143,6 @@ apply live. A fully commented `sample-config.cfg` comes with the download (also
 |---------|---------|---------|---------|
 | `[General]` | `AdminOnly` | `false` | Only admins may change settings |
 | | `HideCommands` | `true` | Hide `!fires` chat lines from other players |
-| | `IgnoreRain` | `false` | Relight lights put out by rain or wind |
 | | `ServerOwnership` | `false` | Experimental: server keeps ownership of fires |
 | `[<item>]` | `AlwaysOn` | lights `true`, stations `false` | Keep fuel full. While on, burn rate and schedule don't apply |
 | | `BurnRate` | `0` | −10 … +10, 10 % per step |
@@ -163,7 +160,7 @@ many modded setups already have) to get:
   server's settings and changes apply to the whole server immediately (they are sent as normal commands, so the
   same permissions and logging apply). With `AdminOnly` on, non-admins see the settings read-only.
 - **Smoke toggle:** items set to `Smoke = off` make no smoke for this player.
-- **No rain flicker:** with `IgnoreRain` on, this player's game never puts lights out in the rain.
+- **Fires in rain:** after `!fires ignorerain on`, fires burn normally in rain for this player.
 
 On a server without Inferno, or in single-player without a world loaded, the client mod does nothing. Version
 mismatches between client and server are detected; the menu is then disabled with a message.
@@ -188,10 +185,12 @@ corrects from the server. With `ServerOwnership` on, the server keeps ownership 
 
 These come from how Valheim works and apply to any server-only mod:
 
-- **Rain, wind, roofs and water** are checked on players' PCs. Some lights (e.g. candles, lanterns) switch
-  themselves off in the rain; with `IgnoreRain` on, Inferno switches them back on within a few seconds, but they
-  may flicker during storms. The server can't tell rain from a player's hand, so `IgnoreRain` also relights
-  lights players switched off. Lights blocked by a roof or under water stay out.
+- **Fires smoulder in the rain, and the server can't stop it.** Each player's PC decides whether a fire is wet
+  (uncovered in rain, or strong wind) and then draws it as small embers with steam: it looks out, but it keeps
+  burning, keeps its fuel and flares up again when the rain stops. A roof over the fire (with room for the smoke)
+  keeps it lit.
+- **Roofs and water** are checked on players' PCs too: a fire with something solid right above it, choked by its
+  own smoke, or under water stays out.
 - **Burn rate is close, not exact, while a player is nearby.** That player's game burns the fuel; Inferno corrects
   the amount every 5 seconds. While nobody is nearby, the server burns fuel itself, exactly, following the burn
   rate and the schedule.
@@ -219,7 +218,8 @@ These come from how Valheim works and apply to any server-only mod:
 |-----------------|-----------------|----------------|
 | 1.0.17 | 0.1.0 – 0.2.x | Yes: local and hosted dedicated servers, vanilla PC clients (incl. two players). Crossplay with console clients: not yet |
 | 1.0.17 | 0.3.0 | **Not tested in-game** (released untested; unit tests only). If you see problems, use 0.2.2 and report them |
-| 1.0.17 | 0.3.1 | **Not tested in-game**, like 0.3.0 (adds `nearby <metres>`). If you see problems, use 0.2.2 and report them |
+| 1.0.17 | 0.3.1 | Partly: `nearby <metres>` with per-torch schedules (12-torch clock), vanilla PC client. The rest of 0.3.0 is not tested in-game yet; if you see problems, use 0.2.2 and report them |
+| 1.0.17 | 0.3.2 | Same as 0.3.1; the fix for presets with `nearby` is unit-tested only |
 
 Inferno targets the **latest stable Valheim release** only. New game patches are tested as they ship; older game
 versions are not supported.

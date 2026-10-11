@@ -46,8 +46,9 @@ Tick each one and note anything odd: **what you did, what you expected, what hap
 8. **Smelter is normal.** A smelter or furnace still needs coal and uses it like before.
 9. **Removing things.** Use the hammer to remove a burning torch or campfire. It works like normal and you get the
    materials back.
-10. **Rain (if it rains).** Note whether candles or lanterns outside go out. (By default they do, like normal
-    Valheim.)
+10. **Rain (if it rains).** Note whether candles outside go out. (By default they do, like normal Valheim.)
+    Uncovered fires and torches turn into smouldering embers with steam while it rains: that is normal Valheim too,
+    and they should flare up again when the rain stops.
 11. **Anything else** that feels different from normal Valheim.
 
 ## What to send

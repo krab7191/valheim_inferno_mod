@@ -95,6 +95,7 @@ Tip: a small test world makes it easier: place one of each torch/fire/hearth/hot
 |----|-------|-----|----------|-----|
 | W-01 | Default: vanilla | Uncovered switchable light (candle/lantern) in rain | Goes out, stays out | R-15 |
 | W-02 | Ignore rain | `!fires ignorerain on`, same light in rain | Relit within ~5 s (may flicker in storms) | R-15 |
+| W-03 | Wet fire (vanilla client) | Uncovered campfire with fuel, `IgnoreRain` on, in rain | Smoulders with steam (vanilla wet look, can't be changed server-only); fuel stays; burns normally once the rain stops | R-15 |
 
 ## 6. Commands and permissions
 
@@ -116,6 +117,7 @@ Tip: a small test world makes it easier: place one of each torch/fire/hearth/hot
 | N-05 | Item-type change doesn't override | `!fires preset eternal torches` after N-01 | Torches in the ward keep the night preset | R-28 |
 | N-07 | Radius | Two torches 5 m apart, sign next to one: `!fires schedule nearby 2 13:00 14:00` | Only the torch next to the sign changes; reply says "within 2 m" | R-28 |
 | N-06 | Reset | `!fires reset nearby` | "… back to their item type's settings" | R-28 |
+| N-08 | Preset skips stations | Smelter with a little coal near a torch; sign: `!fires preset eternal nearby` | Torch changes; smelter coal still burns down (not refilled to 20/20); `show nearby` shows no "(own settings)" on the smelter | R-28 |
 | P-01 | Performance line | Run the server 10+ minutes | Log line "Performance (last 10 min): …" | R-29 |
 | C-15 | In-game names | `!fires show hot tub`, `!fires burnrate standing wood torch -5`, `!fires show torch` | First two work (torch: both items named "Standing Wood Torch" change); third suggests names | R-21 |
 | C-06 | F5 console | Client with `-console`: `listkeys fires list` | Reply in F5 console | R-11 |
@@ -161,7 +163,7 @@ Install Inferno + ConfigurationManager on a PC client; server runs Inferno.
 | M-07 | Vanilla server | Join a server without Inferno | Nothing happens; no errors | R-07 |
 | M-08 | Smoke off | `!fires smoke lights off` | No smoke from lights for this player; vanilla client still sees smoke; fires don't go out | R-06 |
 | M-09 | Smoke blocked still works | Smoke off; build a fire under a low roof | Still goes out like vanilla (smoke can't escape) | R-06 |
-| M-10 | No rain flicker | `IgnoreRain` on, switchable light in rain, modded client owns it | Stays lit, no flicker | R-15 |
+| M-10 | Lit in rain | `IgnoreRain` on, in rain: switchable light the modded client owns, and an uncovered campfire | Candle stays lit, no flicker; campfire shows its full flame for this player | R-15 |
 | M-11 | Version mismatch | (Later releases) old client, new server | Message: settings menu disabled | — |
 
 ## 9. Config file and logging
@@ -177,6 +179,7 @@ Install Inferno + ConfigurationManager on a PC client; server runs Inferno.
 
 | Date | Valheim | Inferno | Tester | Server host | Checks passed | Notes |
 |------|---------|---------|--------|-------------|---------------|-------|
+| 2026-10-09 | 1.0.17 | 0.3.1 (release build) | Owner (PC, vanilla client) | Owner's server | N-07 (as `nearby 1`: 12 torches ~2 m apart, each sign answered "1 of 1 fire(s) within 1 m"), per-torch schedules switch on time (torch clock: 8 lit, 4 dark in one arc) | Ward mode (N-01–N-06) not tested yet. Screenshot: `docs/images/torch-clock.jpg`. |
 | 2026-10-07 | 1.0.17 | 0.2.1 (Thunderstore) | Owner + 1 PC player | Hosted shared server | C-01 (chat command reached the server), C-02 (other player did not see the command: HideCommands on) | C-03 (HideCommands off) next time. |
 | 2026-10-07 | 1.0.17 | 0.2.1 (release build) | Owner (PC, vanilla client) | Local dedicated server | C-19 (green command → green answer), C-17 (undo; "Nothing to undo" after restart as designed) | |
 | 2026-10-07 | 1.0.17 | 0.2.0 (release build) | Owner (PC, vanilla client) | Local dedicated server | A-08 (new sign < 1 s), C-16, C-18, C-12 (0 errors) | C-17 undo not run. |

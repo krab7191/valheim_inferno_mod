@@ -34,7 +34,7 @@ mod (phase 2) adds an in-game settings tab and client-only features.
 | R-12 | `AdminOnly` setting, default **off**. Off: anyone may change any setting (incl. turning `AdminOnly` on). On: only admins may change settings (incl. turning it off) | Yes | 1 | IMPL (core) | §4.5 | `PermissionPolicyTests` |
 | R-12a | Nobody can change who the server admins are through Inferno; admin list comes from the server (`adminlist.txt`, set via the host's panel) | Yes — Inferno only reads it, using the platform id from the network connection (can't be spoofed) | 1 | IMPL | §4.5 | C-08–C-10 |
 | R-13 | Log everything: every command (source, player, platform id), every change (old → new), config-file edits, denials | Yes | 1 | IMPL | — | `SettingsDiffTests`, F-01, F-03 |
-| R-15 | `IgnoreRain` general setting, **off by default** (lights go out in rain like vanilla); on = relight lights the rain switched off | Partial — server can only relight afterwards, can't tell rain from a player (§4.11) | 1 | IMPL | §4.11 | `FuelControllerTests`, W-01, W-02 |
+| R-15 | `IgnoreRain` general setting, **off by default** (lights go out in rain like vanilla); on = relight lights the rain switched off | Partial — server can only relight afterwards, can't tell rain from a player (§4.11); can't stop the client-side wet look (smouldering) of fires and torches. Not advertised; documented only as a client-mod feature | 1 | IMPL | §4.11 | `FuelControllerTests`, W-01–W-03 |
 | R-17 | Opt-in **server ownership** mode (`ServerOwnership`, default off): server keeps ownership of eligible fires so no client burns fuel or applies rain; server handles add-fuel/toggle RPCs and lends ownership for all other actions | Yes (experimental) | 1 | IMPL | §4.13 | `OwnershipTests`, O-01–O-11 |
 | R-18 | `!fires status` (read-only, always allowed) shows versions, tracked objects, in-game time and general settings — lets remote/console testers confirm Inferno runs | Yes | 1 | IMPL | — | `CommandExecutorTests`, C-12 |
 | R-19 | Hardening: per-player rate limit across all command sources (burst 10, 1/s; one warning, then silent), 200-character command cap, truncated log lines, batched settings broadcasts (≤ 2/s), hello cooldown, client-side batching of menu edits (0.75 s) | Yes | 1 | IMPL | — | `RateLimiterTests`, `CommandParserTests`, C-13, C-14 |
@@ -46,8 +46,8 @@ mod (phase 2) adds an in-game settings tab and client-only features.
 | R-25 | New fires are filled and sign commands answered within ~1 s (server reacts to incoming object data instead of waiting for the 30 s sweep / 5 s pass) | Yes | 0.2.0 | IMPL | §4.12 | A-08 |
 | R-26 | `!fires undo`: reverts the player's own last change (one step, per player, lost on restart); a general-setting undo restores only that setting | Yes | 0.2.0 | IMPL (design by Claude, owner to review) | — | `CommandExecutorTests`, C-17 |
 | R-27 | Setting a burn rate or schedule window switches AlwaysOn off (reply says so); turning AlwaysOn on keeps burn rate and schedule stored; `schedule … off` leaves AlwaysOn alone; menu sends AlwaysOn last | Yes | 0.2.1 | IMPL | — | `CommandExecutorTests`, `SyncTests` |
-| R-28 | Per-base control: `nearby` (alone or after an item) limits a command to the fires around the sign/player. Inside a ward = the ward's area, ward access required (vanilla `PrivateArea.CheckAccess` rule); no ward = 20 m, anyone. Changed fires keep own settings in their ZDO (`Inferno_*` keys), which win over item-type settings; `reset nearby` clears them; undo supported | Yes | 0.3.0 | IMPL | — | `AreasTests`, `NearbyCommandTests`, N-01–N-06 |
-| R-31 | `nearby <metres>` (1–100): plain circle around the sign/player, ignoring ward areas; ward permission still per fire. Promised in the owner Q&A on B-08 but missing from 0.3.0 | Yes | 0.3.1 | IMPL | — | `NearbyCommandTests`, `AreasTests`, N-07 |
+| R-28 | Per-base control: `nearby` (alone or after an item) limits a command to the fires around the sign/player. Inside a ward = the ward's area, ward access required (vanilla `PrivateArea.CheckAccess` rule); no ward = 20 m, anyone. Changed fires keep own settings in their ZDO (`Inferno_*` keys), which win over item-type settings; `reset nearby` clears them; undo supported. A preset with `nearby` and no item uses the preset's default group (lights for eternal/night), like without `nearby` | Yes | 0.3.0 | IMPL | — | `AreasTests`, `NearbyCommandTests`, N-01–N-08 |
+| R-31 | `nearby <metres>` (1–100): plain circle around the sign/player, ignoring ward areas; ward permission still per fire. Promised in the owner Q&A on B-08 but missing from 0.3.0 | Yes | 0.3.1 | VERIFIED | — | `NearbyCommandTests`, `AreasTests`, N-07 (2026-10-09, 12-torch clock) |
 | R-29 | Performance line in the log every 10 min (tracked objects, pass/sweep timings, writes, errors) | Yes | 0.3.0 | IMPL | — | `RunningStatsTests`, P-01 |
 | R-30 | Wrong word order → "Did you mean …" suggestion (never run automatically); undo depth 10 per player | Yes | 0.3.0 | IMPL | — | `CommandParserTests`, `CommandExecutorTests` |
 | R-16 | Uninstall leaves no fire dark: scheduled-off lights are switched back on before the final save on shutdown; fuel is left as is | Yes (normal shutdown only) | 1 | IMPL | §4.11 | `FuelControllerTests`, S-06 |
@@ -183,6 +183,12 @@ Items without an on/off switch (smelters, ovens) have no schedule keys. Chat com
 it always shows the current settings.
 
 ### 4.11 Findings from implementation (decompiled, 1.0.17)
+- **Wet fires (`Fireplace.CheckEnv` → `CheckWet`, `UpdateState`):** on every client, a fireplace with low/high flame
+  objects that is uncovered in rain (`EnvMan.IsWet`, `Cover.GetCoverForPoint` → not under a roof) or in wind ≥ 0.8
+  with < 70 % cover sets local `m_wet` and shows `m_enabledObjectLow` (embers + steam) instead of the high flame.
+  `IsBurning()` ignores `m_wet`: fuel, `state` and burning continue. Only `m_canTurnOff` pieces (Resin Candle) also
+  switch themselves off. So a server-only mod cannot make fires *look* lit in rain; owner reported it in-game
+  (campfire 4/4 fuel, smouldering) on 2026-10-11, documentation reworded.
 - **Chat routing:** `Talker.Say` / `Chat.SendText` send each chat line separately to every other player
   (`Chat.CheckPermissionsAndSendChatMessageRPCsAsync`; Steam has a relations provider). The sender's own copy never
   leaves their PC, so the server only sees chat when 2+ players are online, once per recipient. Inferno runs the
@@ -381,6 +387,9 @@ Known caveat (dev only): config values saved by a build that classified an item 
 | 2026-10-07 | Burn rate / schedule changes switch AlwaysOn off; AlwaysOn keeps the other settings stored (R-27) | Owner |
 | 2026-10-08 | Add `nearby <metres>` (had been offered in the B-08 questions, omitted from 0.3.0); release as 0.3.1 | Owner |
 | 2026-10-08 | Release 0.3.0 without in-game testing ("users beware"); thorough testing before 1.0 | Owner |
+| 2026-10-11 | Bug fix: `preset eternal nearby` made nearby smelters always on (free coal). A preset with `nearby` and no item now uses the preset's default group (lights), matching the form without `nearby` | Owner |
+| 2026-10-11 | Reword `IgnoreRain` everywhere (README, config text, help): it relights lights rain switched off; it doesn't stop fires smouldering in rain (client-side wet look, only roof or client mod) | Owner |
+| 2026-10-11 | `IgnoreRain` is only worth something if fires stay lit, which server-only can't do: remove it from README, `help` and `status`; mention it only in the client-mod section and the config file, downplayed (client mod is PC-only, an afterthought). Setting, command and code stay | Owner |
 | 2026-10-07 | Repo public: https://github.com/krab7191/valheim_inferno_mod; link on the mod page (manifest website_url) and README | Owner |
 | 2026-10-07 | Per-base control: ward area if the sign/player is in a ward, else 20 m; ward permission like building | Owner |
 | 2026-10-07 | Publish 0.2.0 (local test passed for presets, word groups, instant signs; undo not yet tested in-game) | Owner |

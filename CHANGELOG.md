@@ -5,6 +5,22 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-11
+
+**The preset fix is unit-tested only**; not yet checked in-game.
+
+### Fixed
+- `!fires preset eternal nearby` (or `night`) without an item name changed every fuel user around you, so nearby
+  smelters and blast furnaces became always on with free coal. Presets with `nearby` now change only lights, as they
+  do without `nearby`; name a station to include it (`!fires preset eternal smelter nearby`). Already affected
+  stations: `!fires reset stations nearby`.
+
+### Changed
+- `IgnoreRain` is no longer advertised: a server-only mod can't keep fires lit in the rain. Uncovered fires and
+  torches smoulder with steam while it rains, as in vanilla; they keep burning and keep their fuel. Use a roof. The
+  setting stays for the PC client mod and is no longer listed in `help`, `status` or the README feature list.
+- README: clock example with 12 torches and a picture; `nearby <metres>` is now tested in-game (PC).
+
 ## [0.3.1] - 2026-10-08
 
 **Released without in-game testing** (unit-tested only), like 0.3.0.

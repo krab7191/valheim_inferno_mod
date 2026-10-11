@@ -50,7 +50,8 @@ internal sealed class ConfigSettingsStore : ISettingsStore, IDisposable
         _hideCommands = Bind(GeneralSection, "HideCommands", GeneralSettings.Default.HideCommands,
             "Hide '!fires' chat commands from other players.");
         _ignoreRain = Bind(GeneralSection, "IgnoreRain", GeneralSettings.Default.IgnoreRain,
-            "Switch lights back on after rain or wind put them out. Note: this also relights lights a player switched off by hand.");
+            "PC client mod only: players with the client mod see fires burn normally in rain. Everyone else sees vanilla rain. "
+            + "Side effect: the server also switches lights back on that a player switched off by hand.");
         _serverOwnership = Bind(GeneralSection, "ServerOwnership", GeneralSettings.Default.ServerOwnership,
             "EXPERIMENTAL. The server keeps ownership of fires, so no player's game burns their fuel or switches them off in rain. "
             + "Burn rate and schedule become exact. Side effects: no sound when adding fuel or switching these fires; they don't go out in rain. "

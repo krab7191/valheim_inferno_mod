@@ -57,7 +57,6 @@ public sealed class CommandExecutor
         [
             "adminonly on|off – only admins may change settings",
             "hidecommands on|off – hide !fires lines in chat",
-            "ignorerain on|off – relight lights after rain",
             "serverownership on|off – experimental, see readme",
             "smoke <item> on|off – client mod players only",
             "F5 console: listkeys fires <command>",
@@ -198,7 +197,15 @@ public sealed class CommandExecutor
             return Ok([$"Unknown preset '{command.Name}'. Presets: {names}."]);
         }
 
-        return UpdateItems(sender, command.Target ?? preset.DefaultTarget, "Preset", preset.Name, preset.Apply);
+        // "preset eternal nearby" must change the same kind of items as "preset eternal" (lights), not every fuel
+        // user around the player: otherwise nearby smelters end up always on with free coal.
+        var target = command.Target ?? preset.DefaultTarget;
+        if (TrySplitNearby(target, out var scope) && scope.Filter is null && preset.DefaultTarget != ItemCatalog.AllGroup)
+        {
+            target = preset.DefaultTarget + " " + target;
+        }
+
+        return UpdateItems(sender, target, "Preset", preset.Name, preset.Apply);
     }
 
     private CommandResult UpdateItems(
